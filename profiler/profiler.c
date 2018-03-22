@@ -12,7 +12,7 @@
 
 typedef uint64_t __profiler_sec_t;
 typedef uint64_t __profiler_nsec_t;
-typedef int      __profiler_pid_t;
+typedef uint64_t __profiler_pid_t;
 
 enum direction_t {
 	CALL = 0,
@@ -24,8 +24,8 @@ struct __profiler_data {
 	__profiler_nsec_t nsec;
 	void * callee;
 	void * caller;
-	enum direction_t direction;
-};
+	uint64_t direction;
+} __attribute__((packed));
 
 struct __profiler_header {
 	struct __profiler_header * self;
@@ -34,7 +34,7 @@ struct __profiler_header {
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;
 	struct __profiler_data * data;
-};
+} __attribute__((packed));
 
 struct __profiler_header * __profiler_head = NULL;
 
@@ -118,7 +118,7 @@ static void PERF_METHOD_ATTRIBUTE __profiler_map_info(void) {
 		return;
 	}
 
-	sz = write(fd, "", 1);
+	size_t written = write(fd, "", 1);
 	if (sz == -1) {
 		close(fd);
 		write(2,SIZE_ERROR, sizeof(SIZE_ERROR));
