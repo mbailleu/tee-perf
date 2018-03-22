@@ -83,9 +83,6 @@ def get_db(file_name: str, elf_file: str):
     
     scone_force = clean_addr(0, data)
     
-    for callee in data["callee"]:
-        print(hex(callee))
-    
     get_names(elf_file, data, "callee", "callee_name", "callee_file")
     
     if SCONE == True and data["callee_name"].mode().any() == "??":
@@ -95,8 +92,30 @@ def get_db(file_name: str, elf_file: str):
             print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
     
     get_names(elf_file, data, "caller", "caller_name", "caller_file")
-    
-    print(data)
+    return data
+
+def build_stack(data):
+    i = 0
+    stack_depth = []
+    for row in data["direction"]:
+        stack_depth.append(i)
+        if int(row) == 0:
+            i += 1
+        else:
+            i -= 1
+    data["stack_depth"] = stack_depth
+#    import pdb; pdb.set_trace()
+    show_stack(data)
+
+def show_stack(data):
+    def apply(row):
+        if row["stack_depth"] == 0:
+            print(row["callee_name"])
+            return
+        for i in range(int(row["stack_depth"])):
+            print("| ", end="")
+        print("->",row["callee_name"])
+    data[data["direction"] == 0].apply(apply, axis=1)
 
 def main():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
@@ -117,8 +136,12 @@ def main():
             dump_output = args.elf_file
         else:
             dump_output = args.dump_output
-        de.dump(args.dump[0], args.dump[1], dump_output)
-    get_db(args.profile_dump, args.elf_file)
+        if SCONE == True:
+            de.dump(args.dump[0], args.dump[1], dump_output)
+        else:
+            print("Cannot dump Scone ELF without Scone")
+    data = get_db(args.profile_dump, args.elf_file)
+    build_stack(data)
 
 if __name__ == "__main__":
     main()
