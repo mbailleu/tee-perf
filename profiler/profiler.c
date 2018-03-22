@@ -6,35 +6,10 @@
 #include <stddef.h>
 
 #include "profiler.h"
+#include "profiler_data.h"
 
 #define PERF_METHOD_ATTRIBUTE \
 	__attribute__((no_instrument_function))
-
-typedef uint64_t __profiler_sec_t;
-typedef uint64_t __profiler_nsec_t;
-typedef uint64_t __profiler_pid_t;
-
-enum direction_t {
-	CALL = 0,
-	RET  = 1
-};
-
-struct __profiler_data {
-	__profiler_sec_t  sec;
-	__profiler_nsec_t nsec;
-	void * callee;
-	void * caller;
-	uint64_t direction;
-} __attribute__((packed));
-
-struct __profiler_header {
-	struct __profiler_header * self;
-	__profiler_sec_t  volatile sec;
-	__profiler_nsec_t volatile nsec;
-	__profiler_pid_t  volatile scone_pid;
-	size_t size;
-	struct __profiler_data * data;
-} __attribute__((packed));
 
 struct __profiler_header * __profiler_head = NULL;
 
@@ -94,7 +69,7 @@ __cyg_profile_func_exit(void * this_fn, void * call_site) {
 		x();                              \
 	};
 
-#define mem_size (4 << 12)
+#define mem_size __PROFILER_SHM_SIZE__
 #define OPEN_ERROR "could not open " FILENAME "\n"
 #define SIZE_ERROR "could not resize " FILENAME " to 16KiB\n" 
 #define MAP_ERROR  "__profiler_head could not be intanziated\n"
@@ -137,11 +112,12 @@ static void PERF_METHOD_ATTRIBUTE __profiler_map_info(void) {
 	__profiler_head->self = __profiler_head;
 	__profiler_head->size = sz;
 	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
+	__profiler_head->scone_pid = getpid();
 }
 
 CONSTRUCTOR(__profiler_map_info);
 
-#if defined(TEST_PROFILER)
+#if defined(TEST_PROFILER) || 1
 
 static void __attribute__((destructor,used,no_instrument_function)) dump(void) {
 	if (__profiler_head != NULL) {
