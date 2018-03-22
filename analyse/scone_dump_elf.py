@@ -10,14 +10,22 @@ def exec_docker(args: List[str]):
     program.extend(args)
     subprocess.check_output(program)
 
+def exec_docker_cp_workaround(container_name: str, executable: str, exec_file: str):
+    cat = subprocess.Popen(["cat", executable], stdout=subprocess.PIPE)
+    docker = subprocess.Popen(["sudo", "docker", "exec", "-i", container_name, "bash", "-c", "cat > "+exec_file], stdin=cat.stdout)
+    cat.wait()
+    docker.wait()
+
 def dump(container_name: str, executable: str, output: str):
     dump_file = "/tmp/scone_dump_elf"
     exec_file = "/tmp/"+os.path.basename(executable)
     executable = os.path.abspath(executable)
-    exec_docker(["cp", executable, container_name+":"+exec_file])
+    exec_docker_cp_workaround(container_name, executable, exec_file)
+    exec_docker(["exec", container_name, "chmod", "+x", exec_file])
+#    exec_docker(["cp", executable, container_name+":"+exec_file])
     gdb = ["exec", container_name, "scone-gdb", "-nx", "--batch"]
     for cmd in ["break main", "run", "continue", "shell cp $SCONE_DUMP_DEBUG "+dump_file+"; exit"]:
-        gdb.extend(["-ex". cmd])
+        gdb.extend(["-ex", cmd])
     gdb.append(exec_file)
     exec_docker(gdb)
     exec_docker(["cp", container_name+":"+dump_file, output])
