@@ -6,6 +6,8 @@ import struct
 import subprocess
 from io import *
 from typing import Tuple, List
+import argparse
+import scone_dump_elf as de
 
 sec_t = "u8"
 nsec_t = "u8"
@@ -14,7 +16,6 @@ ptr_t = "u8"
 size_t = "u8"
 
 SCONE = True
-elf_file = "../profiler/test/test"
 
 def readfile(filename: str) -> Tuple:
     buf = open(filename, 'rb').read()
@@ -75,22 +76,50 @@ def force_to_str(force: int) -> str:
     if (force == 3):
         return "Non-Scone ELF"
 
-file_name = "/tmp/__profiler_file_scone.shm"
-header, data = readfile(file_name)
-
-scone_force = clean_addr(0, data)
-
-for callee in data["callee"]:
-    print(hex(callee))
-
-get_names(elf_file, data, "callee", "callee_name", "callee_file")
-
-if SCONE == True and data["callee_name"].mode().any() == "??":
-    scone_force = clean_addr(scone_force, data)
+def get_db(file_name: str, elf_file: str):
+#    file_name = "/tmp/__profiler_file_scone.shm"
+#    elf_file = "../profiler/test/test"
+    header, data = readfile(file_name)
+    
+    scone_force = clean_addr(0, data)
+    
+    for callee in data["callee"]:
+        print(hex(callee))
+    
     get_names(elf_file, data, "callee", "callee_name", "callee_file")
-    if data["calle_name"].mode().any() == "??":
-        print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
+    
+    if SCONE == True and data["callee_name"].mode().any() == "??":
+        scone_force = clean_addr(scone_force, data)
+        get_names(elf_file, data, "callee", "callee_name", "callee_file")
+        if data["calle_name"].mode().any() == "??":
+            print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
+    
+    get_names(elf_file, data, "caller", "caller_name", "caller_file")
+    
+    print(data)
 
-get_names(elf_file, data, "caller", "caller_name", "caller_file")
+def main():
+    parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
+    parser.add_argument("elf_file", metavar="elf-file", type=str, help="Elf file for parsing symbols")
+    parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
+    parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
+    parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
+    parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
+    parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
+    args = parser.parse_args()
+    if args.no_scone == False:
+        SCONE = True
+    else:
+        SCONE = False
+    if args.dump is not None:
+        dump_output = None
+        if args.dump_output is None:
+            dump_output = args.elf_file
+        else:
+            dump_output = args.dump_output
+        de.dump(args.dump[0], args.dump[1], dump_output)
+    get_db(args.profile_dump, args.elf_file)
 
-print(data)
+if __name__ == "__main__":
+    main()
+
