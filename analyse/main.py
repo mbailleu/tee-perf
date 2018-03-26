@@ -111,19 +111,6 @@ def get_db(file_name: str, elf_file: str):
     get_names(elf_file, data, "caller", "caller_name", "caller_file")
     return data
 
-def gen_stack_depth(data):
-    i = 0
-    stack_depth = []
-    for row in data["direction"]:
-        if int(row) == 0:
-            stack_depth.append(i)
-            i += 1
-        else:
-            i -= 1
-            stack_depth.append(i)
-    data["stack_depth"] = stack_depth
-    show_stack(data)
-
 def show_func_call(depth: int, name: str):
     if SHOW_STACK == True:
         print("| " * depth,"-> ",name,sep='')
@@ -153,41 +140,6 @@ def build_stack(data):
             prev_times.append(int(row[2] - t))
 #    import pdb; pdb.set_trace()
     return pd.DataFrame(stack_list, index=stack_list["idx"])
-
-def show_stack(data):
-    def apply(row):
-        if row["stack_depth"] == 0:
-            print(row["callee_name"])
-            return
-        for i in range(int(row["stack_depth"])):
-            print("| ", end="")
-        print("->",row["callee_name"])
-    data[data["direction"] == 0].apply(apply, axis=1)
-
-def combine_enter_ret(data):
-    data["delta"] = 0
-    for entry in data["callee"].drop_duplicates():
-        for row in data[(data["callee"] == entry) & (data["direction"] == 0)][["time", "stack_depth"]].itertuples():
-            ret = data[(data.index > row[0]) & (data["stack_depth"] == row[2])].iloc[0]
-            data.at[row[0],"delta"] = ret["time"] - row[1]
-    return data[data["direction"] == 0][["callee","callee_name", "caller", "caller_name", "delta", "stack_depth"]]
-
-def caller_time(data):
-    def callee_time(data, idx, stack_depth):
-        res = 0
-        stack_depth += 1
-#        import pdb; pdb.set_trace()
-        for entry in data[data.index > idx][["delta","stack_depth"]].itertuples():
-            if entry[2] < stack_depth:
-                return res
-            if entry[2] == stack_depth:
-                res += entry[1]
-        return res
-
-    data["callee_time"] = 0
-    for entry in data[["delta", "stack_depth"]].itertuples():
-        data.at[entry[0],"callee_time"] = entry[1] - callee_time(data, entry[0], entry[2])
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
@@ -228,10 +180,6 @@ def main():
     dump_output(args)
     data = get_db(args.profile_dump, args.elf_file)
     data = build_stack(data)
-    #print(data)
-    #gen_stack_depth(data)
-    #data = combine_enter_ret(data)
-    #caller_time(data)
     #print(data)
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
