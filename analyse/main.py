@@ -6,6 +6,7 @@ import struct
 import subprocess
 from io import *
 from typing import Tuple, List
+from collections import defaultdict
 import argparse
 import scone_dump_elf as de
 
@@ -17,6 +18,7 @@ ptr_t = "u8"
 size_t = "u8"
 
 SCONE = True
+SHOW_STACK = False
 
 class SI_prefix:
     def __init__(self, numerator: int, denominator: int):
@@ -122,6 +124,36 @@ def gen_stack_depth(data):
     data["stack_depth"] = stack_depth
     show_stack(data)
 
+def show_func_call(depth: int, name: str):
+    if SHOW_STACK == True:
+        print("| " * depth,"-> ",name,sep='')
+
+def build_stack(data):
+    stack_depth = 0
+    stack = []   #(idx,time,[])
+    stack_list = defaultdict(list)
+    prev_times = []
+    for row in data[["direction","time","callee_name"]].itertuples():
+        if int(row[1]) == 0:
+            stack.append((row[0],row[2],prev_times))
+            prev_times = []
+            stack_depth += 1
+            show_func_call(stack_depth, row[3])
+        else:
+            stack_depth -= 1
+            idx, t, prev = stack.pop()
+            tmp = 0
+            for e in prev_times:
+                tmp += e
+            stack_list["idx"].append(idx)
+            stack_list["time"].append(int(row[2] - t - tmp))
+            stack_list["depth"].append(stack_depth)
+            stack_list["callee_name"].append(row[3])
+            prev_times = prev
+            prev_times.append(int(row[2] - t))
+#    import pdb; pdb.set_trace()
+    return pd.DataFrame(stack_list, index=stack_list["idx"])
+
 def show_stack(data):
     def apply(row):
         if row["stack_depth"] == 0:
@@ -162,16 +194,13 @@ def parse_args():
     parser.add_argument("elf_file", metavar="elf-file", type=str, help="Elf file for parsing symbols")
     parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
+    parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
     return parser.parse_args()
 
 def dump_output(args):
-    if args.no_scone == False:
-        SCONE = True
-    else:
-        SCONE = False
     if args.dump is not None:
         dump_output = None
         if args.dump_output is None:
@@ -183,15 +212,29 @@ def dump_output(args):
         else:
             print("Cannot dump Scone ELF without Scone")
 
+def set_globals(args):
+    global SCONE
+    global SHOW_STACK
+    if args.no_scone == False:
+        SCONE = True
+    else:
+        SCONE = False
+    SHOW_STACK = args.show_stack
+
+
 def main():
     args = parse_args()
+    set_globals(args)
     dump_output(args)
     data = get_db(args.profile_dump, args.elf_file)
-    gen_stack_depth(data)
-    data = combine_enter_ret(data)
-    caller_time(data)
-    data["callee_percent"] = (data["callee_time"] / data["callee_time"].sum()) * 100
-    print(data.groupby(["callee_name"])[["callee_name","callee_time","callee_percent"]].sum().sort_values(by=["callee_time"], ascending=False))
+    data = build_stack(data)
+    #print(data)
+    #gen_stack_depth(data)
+    #data = combine_enter_ret(data)
+    #caller_time(data)
+    #print(data)
+    data["percent"] = (data["time"] / data["time"].sum()) * 100
+    print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
 
 if __name__ == "__main__":
     main()
