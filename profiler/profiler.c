@@ -123,8 +123,20 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 		return;
 	}
 #endif
+	size_t sz = lseek(fd, offsetof(struct __profiler_header, size), SEEK_SET);
+	if (sz == -1) {
+		close(fd);
+		write(2, SIZE_ERROR, sizeof(SIZE_ERROR));
+		return;
+	}
 
-	void * ptr = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); 
+	if (read(fd, &sz, sizeof(size_t)) == -1) {
+		close(fd);
+		write(2, SIZE_ERROR, sizeof(SIZE_ERROR));
+		return;
+	}
+
+	void * ptr = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); 
 	if (ptr == MAP_FAILED) {
 		close(fd);
 		write(2, MAP_ERROR, sizeof(MAP_ERROR));
@@ -133,7 +145,7 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	__profiler_fd = fd;
 	__profiler_head = (struct __profiler_header *)ptr;
 	__profiler_head->self = __profiler_head;
-	__profiler_map_size = mem_size;
+	__profiler_map_size = sz;
 	__profiler_head->scone_pid = getpid();
 	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
 	//busy Wait until timer works
