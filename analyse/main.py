@@ -9,6 +9,7 @@ from typing import Tuple, List
 import argparse
 import scone_dump_elf as de
 
+
 sec_t = "u8"
 nsec_t = "u8"
 pid_t = "u8"
@@ -16,6 +17,15 @@ ptr_t = "u8"
 size_t = "u8"
 
 SCONE = True
+
+class SI_prefix:
+    def __init__(self, numerator: int, denominator: int):
+        self.numerator = numerator
+        self.denominator = denominator
+
+milli = SI_prefix(1, 10 ** 3)
+micro = SI_prefix(1, 10 ** 6)
+nano  = SI_prefix(1, 10 ** 9)
 
 def readfile(filename: str) -> Tuple:
     buf = open(filename, 'rb').read()
@@ -32,6 +42,7 @@ def readfile(filename: str) -> Tuple:
                          ("data", ptr_t)])
     header = np.frombuffer(buf, dtype=header_t, count=1)
     size = header["data"] - header["self"] - header_t.itemsize
+#    print(hex(int(size)), hex(int(header["data"])), hex(int(header["self"])), hex(int(header_t.itemsize)))
     data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
     return (header, pd.DataFrame(data))
 
@@ -81,6 +92,10 @@ def get_db(file_name: str, elf_file: str):
 #    elf_file = "../profiler/test/test"
     header, data = readfile(file_name)
     
+    data["time"] = data["sec"] * nano.denominator + data["nsec"]
+
+    data.drop(["sec","nsec"], axis=1, inplace=True)
+
     scone_force = clean_addr(0, data)
     
     get_names(elf_file, data, "callee", "callee_name", "callee_file")
@@ -94,17 +109,17 @@ def get_db(file_name: str, elf_file: str):
     get_names(elf_file, data, "caller", "caller_name", "caller_file")
     return data
 
-def build_stack(data):
+def gen_stack_depth(data):
     i = 0
     stack_depth = []
     for row in data["direction"]:
-        stack_depth.append(i)
         if int(row) == 0:
+            stack_depth.append(i)
             i += 1
         else:
             i -= 1
+            stack_depth.append(i)
     data["stack_depth"] = stack_depth
-#    import pdb; pdb.set_trace()
     show_stack(data)
 
 def show_stack(data):
@@ -117,7 +132,32 @@ def show_stack(data):
         print("->",row["callee_name"])
     data[data["direction"] == 0].apply(apply, axis=1)
 
-def main():
+def combine_enter_ret(data):
+    data["delta"] = 0
+    for entry in data["callee"].drop_duplicates():
+        for row in data[(data["callee"] == entry) & (data["direction"] == 0)][["time", "stack_depth"]].itertuples():
+            ret = data[(data.index > row[0]) & (data["stack_depth"] == row[2])].iloc[0]
+            data.at[row[0],"delta"] = ret["time"] - row[1]
+    return data[data["direction"] == 0][["callee","callee_name", "caller", "caller_name", "delta", "stack_depth"]]
+
+def caller_time(data):
+    def callee_time(data, idx, stack_depth):
+        res = 0
+        stack_depth += 1
+#        import pdb; pdb.set_trace()
+        for entry in data[data.index > idx][["delta","stack_depth"]].itertuples():
+            if entry[2] < stack_depth:
+                return res
+            if entry[2] == stack_depth:
+                res += entry[1]
+        return res
+
+    data["callee_time"] = 0
+    for entry in data[["delta", "stack_depth"]].itertuples():
+        data.at[entry[0],"callee_time"] = entry[1] - callee_time(data, entry[0], entry[2])
+
+
+def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
     parser.add_argument("elf_file", metavar="elf-file", type=str, help="Elf file for parsing symbols")
     parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
@@ -125,7 +165,9 @@ def main():
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def dump_output(args):
     if args.no_scone == False:
         SCONE = True
     else:
@@ -140,8 +182,15 @@ def main():
             de.dump(args.dump[0], args.dump[1], dump_output)
         else:
             print("Cannot dump Scone ELF without Scone")
+
+def main():
+    args = parse_args()
+    dump_output(args)
     data = get_db(args.profile_dump, args.elf_file)
-    build_stack(data)
+    gen_stack_depth(data)
+    data = combine_enter_ret(data)
+    caller_time(data)
+    print(data.groupby(["callee_name"])[["callee_name","callee_time"]].sum().sort_values(by=["callee_time"], ascending=False))
 
 if __name__ == "__main__":
     main()
