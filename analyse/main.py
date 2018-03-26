@@ -42,7 +42,6 @@ def readfile(filename: str) -> Tuple:
                          ("data", ptr_t)])
     header = np.frombuffer(buf, dtype=header_t, count=1)
     size = header["data"] - header["self"] - header_t.itemsize
-#    print(hex(int(size)), hex(int(header["data"])), hex(int(header["self"])), hex(int(header_t.itemsize)))
     data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
     return (header, pd.DataFrame(data))
 
@@ -73,9 +72,10 @@ def clean_addr(force: int, data) -> int:
     return 3
 
 def get_names(file: str, data, key: str, func_name: str, file_name: str):
-    res = addr2line(file, data[key])
-    data[func_name] = [func for func, file in res]
-    data[file_name] = [file for func, file in res]
+    if len(data.index) > 0:
+        res = addr2line(file, data[key])
+        data[func_name] = [func for func, file in res]
+        data[file_name] = [file for func, file in res]
 
 def force_to_str(force: int) -> str:
     if (force == 0):
