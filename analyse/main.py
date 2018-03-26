@@ -44,6 +44,8 @@ def readfile(filename: str) -> Tuple:
                          ("data", ptr_t)])
     header = np.frombuffer(buf, dtype=header_t, count=1)
     size = header["data"] - header["self"] - header_t.itemsize
+    max_size = header["size"] - header_t.itemsize
+    size = min(size, max_size)
     data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
     return (header, pd.DataFrame(data))
 
