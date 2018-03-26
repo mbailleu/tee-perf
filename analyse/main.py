@@ -190,7 +190,8 @@ def main():
     gen_stack_depth(data)
     data = combine_enter_ret(data)
     caller_time(data)
-    print(data.groupby(["callee_name"])[["callee_name","callee_time"]].sum().sort_values(by=["callee_time"], ascending=False))
+    data["callee_percent"] = (data["callee_time"] / data["callee_time"].sum()) * 100
+    print(data.groupby(["callee_name"])[["callee_name","callee_time","callee_percent"]].sum().sort_values(by=["callee_time"], ascending=False))
 
 if __name__ == "__main__":
     main()
