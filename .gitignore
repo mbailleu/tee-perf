@@ -1,4 +1,5 @@
 profiler/test/test
 profiler/test/timer
+profiler/timer
 *.o
 __pycache__
