@@ -1,7 +1,11 @@
 #pragma once
 
+#if !defined(__PROFILER_SHM_KEY__)
 #define __PROFILER_SHM_KEY__ 4242
-#define __PROFILER_SHM_SIZE__ (1 << 12)
+#endif
+#if !defined(__PROFILER_SHM_SIZE__)
+#define __PROFILER_SHM_SIZE__ (4 << 12)
+#endif
 
 typedef uint64_t __profiler_sec_t;typedef uint64_t __profiler_nsec_t;
 typedef uint64_t __profiler_pid_t;

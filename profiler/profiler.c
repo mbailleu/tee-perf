@@ -4,18 +4,25 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#if defined(TEST_PROFILER)
+#include <assert.h>
+#endif
 
 #include "profiler.h"
 #include "profiler_data.h"
 
 #define PERF_METHOD_ATTRIBUTE \
-	__attribute__((no_instrument_function))
+	__attribute__((no_instrument_function,hot))
 
 struct __profiler_header * __profiler_head = NULL;
 
 static inline struct __profiler_data *
 PERF_METHOD_ATTRIBUTE
 __profiler_fetch_data_ptr(void) {
+#if defined(TEST_PROFILER)
+	assert((intptr_t)(__profiler_head->data) > (intptr_t)(__profiler_head));
+	assert((intptr_t)(__profiler_head->data) < ((intptr_t)__profiler_head) + __profiler_head->size);
+#endif
 	return __profiler_head->data++;
 }
 
@@ -64,10 +71,17 @@ __cyg_profile_func_exit(void * this_fn, void * call_site) {
 #define FILENAME "/tmp/__profiler_file_scone.shm"
 #define CONSTRUCTOR(x) \
 	static void \
-    __attribute__((constructor,used,no_instrument_function)) \
+    __attribute__((constructor,used,no_instrument_function,cold)) \
     x ## _constructor(void) { \
 		x();                              \
-	};
+	}
+
+#define DESTRUCTOR(x) \
+	static void \
+    __attribute__((destructor,used,no_instrument_function,cold)) \
+    x ## _destructor(void) { \
+		x();                              \
+	}
 
 #define mem_size __PROFILER_SHM_SIZE__
 #define OPEN_ERROR "could not open " FILENAME "\n"
@@ -78,14 +92,15 @@ __cyg_profile_func_exit(void * this_fn, void * call_site) {
 static int __profiler_fd = -1;
 static size_t __profiler_map_size = 0;
 
-static void PERF_METHOD_ATTRIBUTE __profiler_map_info(void) {
+static void __attribute__((no_instrument_function,cold)) __profiler_map_info(void) {
 	//TODO: This is only a dummy implementation
-	int fd = open(FILENAME, O_RDWR | O_CREAT, (mode_t)0600);
+	int fd = open(FILENAME, O_RDWR, (mode_t)0600);
 	if (fd == -1) {
 		write(2, OPEN_ERROR, sizeof(OPEN_ERROR));
 		return;
 	}
 
+#if 0
 	size_t sz = lseek(fd, mem_size, SEEK_SET);
 	if (sz == -1) {
 		close(fd);
@@ -94,13 +109,14 @@ static void PERF_METHOD_ATTRIBUTE __profiler_map_info(void) {
 	}
 
 	size_t written = write(fd, "", 1);
-	if (sz == -1) {
+	if (written == -1) {
 		close(fd);
 		write(2,SIZE_ERROR, sizeof(SIZE_ERROR));
 		return;
 	}
+#endif
 
-	void * ptr = mmap(NULL, sz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); 
+	void * ptr = mmap(NULL, mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); 
 	if (ptr == MAP_FAILED) {
 		close(fd);
 		write(2, MAP_ERROR, sizeof(MAP_ERROR));
@@ -108,18 +124,15 @@ static void PERF_METHOD_ATTRIBUTE __profiler_map_info(void) {
 	}
 	__profiler_fd = fd;
 	__profiler_head = (struct __profiler_header *)ptr;
-	__profiler_map_size = sz;
 	__profiler_head->self = __profiler_head;
-	__profiler_head->size = sz;
-	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
+	__profiler_map_size = mem_size;
 	__profiler_head->scone_pid = getpid();
+	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
+	//busy Wait until timer works
+	while (__profiler_head->sec == 0 && __profiler_head->nsec == 0) {};
 }
 
-CONSTRUCTOR(__profiler_map_info);
-
-#if defined(TEST_PROFILER) || 1
-
-static void __attribute__((destructor,used,no_instrument_function)) dump(void) {
+static void __attribute__((no_instrument_function,cold)) __profiler_unmap_info(void) {
 	if (__profiler_head != NULL) {
 		void * ptr = (void *)__profiler_head;
 		size_t const sz = __profiler_map_size;
@@ -135,7 +148,8 @@ static void __attribute__((destructor,used,no_instrument_function)) dump(void) {
 		close(fd);
 }
 
-#endif
+CONSTRUCTOR(__profiler_map_info);
+DESTRUCTOR(__profiler_unmap_info);
 
 #undef FILENAME
 #if defined(__PROFILER_OLD_FILENAME)
