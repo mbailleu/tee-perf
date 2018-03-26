@@ -7,7 +7,8 @@
 #define __PROFILER_SHM_SIZE__ (4 << 12)
 #endif
 
-typedef uint64_t __profiler_sec_t;typedef uint64_t __profiler_nsec_t;
+typedef uint64_t __profiler_sec_t;
+typedef uint64_t __profiler_nsec_t;
 typedef uint64_t __profiler_pid_t;
 
 enum direction_t {
@@ -24,10 +25,10 @@ struct __profiler_data {
 } __attribute__((packed));
 
 struct __profiler_header {
-	struct __profiler_header * self;
 	__profiler_sec_t  volatile sec;
 	__profiler_nsec_t volatile nsec;
+	struct __profiler_header * self;
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;
 	struct __profiler_data * data;
-} __attribute__((packed));
+} __attribute__((packed,aligned(16)));

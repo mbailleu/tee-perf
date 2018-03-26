@@ -29,8 +29,16 @@ __profiler_fetch_data_ptr(void) {
 static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_get_time(__profiler_sec_t * sec, __profiler_nsec_t * nsec) {
-	*sec = __profiler_head->sec;
-	*nsec = __profiler_head->nsec;
+	asm volatile (
+		"lock cmpxchg16b %[ptr] \n"
+		: "=a" (*sec),
+		  "=d" (*nsec)
+		: "a" ((uint64_t)0),
+		  "b" ((uint64_t)0),
+		  "c" ((uint64_t)0),
+		  "d" ((uint64_t)0),
+		  [ptr] "m" (__profiler_head->sec)
+	);
 }
 
 static inline void

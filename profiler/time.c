@@ -88,15 +88,25 @@ static pid_t start_other(char * program, char ** args) {
 }
 
 static __attribute__((hot)) void * update_clock(void * ptr) {
-	struct timespec * t = (struct timespec *)&(head->sec);
+	//struct timespec t;
+	uint64_t sec = 0;
+	uint64_t nsec = 0;
 	for(;;) {
-		clock_gettime(CLOCK_MONOTONIC, t);
-//		asm volatile (
-//			""
-//			:
-//			: [sec] "m" (head->sec),
-//		  	  [nsec] "m" (head->nsec)
-//		);
+		nsec++;
+		if (nsec >= 1000000000) {
+			sec++;
+			nsec = 0;
+		}
+		//clock_gettime(CLOCK_MONOTONIC, &t);
+		asm volatile (
+			"lock cmpxchg16b %[ptr]\n"
+			: [ptr] "=m" (head->sec),
+			  "=m" (head->nsec)
+			: "d" (head->nsec),
+		 	  "a" (head->sec),
+			  "c" (nsec),
+			  "b" (sec)
+		);
 	}
 }
 
