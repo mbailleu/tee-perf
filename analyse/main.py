@@ -34,9 +34,9 @@ def readfile(filename: str) -> Tuple:
                        ("callee", ptr_t),
                        ("caller", ptr_t),
                        ("direction", "u8")])
-    header_t = np.dtype([("self", ptr_t),
-                         ("sec", sec_t),
+    header_t = np.dtype([("sec", sec_t),
                          ("nsec", nsec_t),
+                         ("self", ptr_t),
                          ("pid", pid_t),
                          ("size", size_t),
                          ("data", ptr_t)])
@@ -103,7 +103,7 @@ def get_db(file_name: str, elf_file: str):
     if SCONE == True and data["callee_name"].mode().any() == "??":
         scone_force = clean_addr(scone_force, data)
         get_names(elf_file, data, "callee", "callee_name", "callee_file")
-        if data["calle_name"].mode().any() == "??":
+        if data["callee_name"].mode().any() == "??":
             print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
     
     get_names(elf_file, data, "caller", "caller_name", "caller_file")
