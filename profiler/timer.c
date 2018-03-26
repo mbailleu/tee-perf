@@ -122,7 +122,7 @@ int main(int argc, char ** argv) {
 		return ret;
 	}
 
-	pid_t child = start_other(argv[2], argv + 3);
+	pid_t child = start_other(argv[2], argv + 2);
  	pthread_t clock;
 	if ((ret = pthread_create(&clock, NULL, update_clock, NULL)) != 0) {
 		print_error("Could not create clock thread\n");
