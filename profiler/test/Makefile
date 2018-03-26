@@ -2,7 +2,7 @@
 
 all: test timer
 
-timer: ../time.c ../profiler_data.h Makefile
+timer: ../timer.c ../profiler_data.h Makefile
 	$(HOSTCC) -g -lpthread $< -o $@
 
 test: main.c ../profiler.h ../profiler_data.h ../profiler.c Makefile
