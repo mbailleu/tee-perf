@@ -53,18 +53,20 @@ def readfile(filename: str) -> Tuple:
 def addr2line(binary: str, column) -> List[Tuple[str,str]]:
     def write_to(column, stdin):
         for entry in column:
-            print(hex(entry), file=stdin)
+            stdin.write(hex(entry).encode("utf8"))
+            stdin.write(b"\n")
+#            print(hex(entry), file=stdin)
         stdin.flush()
         stdin.close()
 
     args = ["addr2line", "-e", binary, "-f"]
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE, encoding="utf8")
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     Thread(target=write_to, args=(column, process.stdin)).start()
     res = []
     val = None
     i = 0
     for line in process.stdout:
-        line = line.rstrip()
+        line = line.decode("utf8").rstrip()
         if i == 1:
             res.append((val,line))
             i = 0
