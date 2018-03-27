@@ -143,32 +143,29 @@ def build_stack(data):
     stack = []   #(idx,time,[])
     stack_list = defaultdict(list)
     prev_time = 0
+    caller = -1
     for row in data[["direction","time","callee_name"]].itertuples():
         if int(row[1]) == 0:
-            stack.append((row[0],row[2],prev_time))
+            stack.append((row[0],row[2],prev_time,caller))
+            caller = row[0]
             prev_time = 0
             stack_depth += 1
             show_func_call(stack_depth, row[3])
         else:
             stack_depth -= 1
-            idx, t, prev = stack.pop()
+            idx, t, prev, tmp_caller = stack.pop()
             stack_list["idx"].append(idx)
             stack_list["time"].append(int(row[2] - t - prev_time))
             stack_list["depth"].append(stack_depth)
             stack_list["callee_name"].append(row[3])
+            stack_list["caller"].append(tmp_caller)
             prev_time = prev + int(row[2] - t)
-#    import pdb; pdb.set_trace()
+            caller = tmp_caller
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
 def find_callers(data, func: str):
-    tmp = data.sort_values(by=["idx"], ascending=False)
-    lists = defaultdict(list)
-    for entry in tmp[tmp["callee_name"] == func][["idx", "depth"]].itertuples():
-        for e in tmp[tmp.index < entry[0]][["callee_name", "depth"]].itertuples():
-            if e[2] < entry[2]:
-                lists["callee_name"].append(e[1])
-                break
-    print(pd.DataFrame(lists)["callee_name"].value_counts())
+    callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
+    print(callers)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
@@ -217,7 +214,7 @@ def main():
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
             print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
-   # find_callers(data, "a")
+    find_callers(data, "a")
     if INTERACTIVE:
         import pdb; pdb.set_trace()
 
