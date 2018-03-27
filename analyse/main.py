@@ -160,6 +160,16 @@ def build_stack(data):
 #    import pdb; pdb.set_trace()
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
+def find_callers(data, func: str):
+    tmp = data.sort_values(by=["idx"], ascending=False)
+    lists = defaultdict(list)
+    for entry in tmp[tmp["callee_name"] == func][["idx", "depth"]].itertuples():
+        for e in tmp[tmp.index < entry[0]][["callee_name", "depth"]].itertuples():
+            if e[2] < entry[2]:
+                lists["callee_name"].append(e[1])
+                break
+    print(pd.DataFrame(lists)["callee_name"].value_counts())
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
     parser.add_argument("elf_file", metavar="elf-file", type=str, help="Elf file for parsing symbols")
@@ -207,6 +217,7 @@ def main():
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
             print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
+   # find_callers(data, "a")
     if INTERACTIVE:
         import pdb; pdb.set_trace()
 
