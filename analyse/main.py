@@ -108,6 +108,7 @@ def force_to_str(force: int) -> str:
 def get_db(file_name: str, elf_file: str):
 #    file_name = "/tmp/__profiler_file_scone.shm"
 #    elf_file = "../profiler/test/test"
+    print("Read File:", file_name)
     header, data = readfile(file_name)
     
     data["time"] = data["sec"] * nano.denominator + data["nsec"]
@@ -116,6 +117,7 @@ def get_db(file_name: str, elf_file: str):
 
     scone_force = clean_addr(0, data)
     
+    print("Get callee functions")
     get_names(elf_file, data, "callee", "callee_name", "callee_file")
     
     if SCONE == True and data["callee_name"].mode().any() == "??":
@@ -124,7 +126,10 @@ def get_db(file_name: str, elf_file: str):
         if data["callee_name"].mode().any() == "??":
             print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
     
-    get_names(elf_file, data, "caller", "caller_name", "caller_file")
+    if False:
+        print("Get caller functions")
+        get_names(elf_file, data, "caller", "caller_name", "caller_file")
+
     return data
 
 def show_func_call(depth: int, name: str):
@@ -132,6 +137,7 @@ def show_func_call(depth: int, name: str):
         print("| " * depth,"-> ",name,sep='')
 
 def build_stack(data):
+    print("build stack")
     stack_depth = 0
     stack = []   #(idx,time,[])
     stack_list = defaultdict(list)
@@ -176,6 +182,7 @@ def dump_output(args):
         else:
             dump_output = args.dump_output
         if SCONE == True:
+            print("Dump enclave ELF to", dump_output)
             de.dump(args.dump[0], args.dump[1], dump_output)
         else:
             print("Cannot dump Scone ELF without Scone")
@@ -198,7 +205,8 @@ def main():
     data = build_stack(data)
     #print(data)
     data["percent"] = (data["time"] / data["time"].sum()) * 100
-    print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
+    with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
+            print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
 
 if __name__ == "__main__":
     main()
