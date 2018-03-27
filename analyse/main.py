@@ -20,6 +20,7 @@ size_t = "u8"
 
 SCONE = True
 SHOW_STACK = False
+INTERACTIVE = False
 
 class SI_prefix:
     def __init__(self, numerator: int, denominator: int):
@@ -165,6 +166,7 @@ def parse_args():
     parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
     parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack")
+    parser.add_argument("-i", "--interactive", action="store_true", help="Get a interactive shell at the end")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
@@ -186,11 +188,13 @@ def dump_output(args):
 def set_globals(args):
     global SCONE
     global SHOW_STACK
+    global INTERACTIVE
     if args.no_scone == False:
         SCONE = True
     else:
         SCONE = False
     SHOW_STACK = args.show_stack
+    INTERACTIVE = args.interactive
 
 
 def main():
@@ -203,6 +207,8 @@ def main():
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
             print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
+    if INTERACTIVE:
+        import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
     main()
