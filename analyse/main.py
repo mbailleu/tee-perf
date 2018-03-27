@@ -141,25 +141,21 @@ def build_stack(data):
     stack_depth = 0
     stack = []   #(idx,time,[])
     stack_list = defaultdict(list)
-    prev_times = []
+    prev_time = 0
     for row in data[["direction","time","callee_name"]].itertuples():
         if int(row[1]) == 0:
-            stack.append((row[0],row[2],prev_times))
-            prev_times = []
+            stack.append((row[0],row[2],prev_time))
+            prev_time = 0
             stack_depth += 1
             show_func_call(stack_depth, row[3])
         else:
             stack_depth -= 1
             idx, t, prev = stack.pop()
-            tmp = 0
-            for e in prev_times:
-                tmp += e
             stack_list["idx"].append(idx)
-            stack_list["time"].append(int(row[2] - t - tmp))
+            stack_list["time"].append(int(row[2] - t - prev_time))
             stack_list["depth"].append(stack_depth)
             stack_list["callee_name"].append(row[3])
-            prev_times = prev
-            prev_times.append(int(row[2] - t))
+            prev_time = prev + int(row[2] - t)
 #    import pdb; pdb.set_trace()
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
