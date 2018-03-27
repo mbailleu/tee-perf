@@ -9,6 +9,7 @@ from typing import Tuple, List
 from collections import defaultdict
 import argparse
 import scone_dump_elf as de
+from threading import Thread
 
 
 sec_t = "u8"
@@ -49,16 +50,27 @@ def readfile(filename: str) -> Tuple:
     data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
     return (header, pd.DataFrame(data))
 
-def addr2line(binary: str, entry) -> List[Tuple[str,str]]:
+def addr2line(binary: str, column) -> List[Tuple[str,str]]:
+    def write_to(column, stdin):
+        for entry in column:
+            print(hex(entry), file=stdin)
+        stdin.flush()
+        stdin.close()
+
     args = ["addr2line", "-e", binary, "-f"]
-    for e in entry:
-        args.append(hex(e))
-    process = subprocess.Popen(args, stdout=subprocess.PIPE)
-    lines = process.communicate()[0].decode("utf-8").splitlines()
-    process.wait()
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE, encoding="utf8")
+    Thread(target=write_to, args=(column, process.stdin)).start()
     res = []
-    for i in range(0,len(lines),2):
-        res.append((lines[i],lines[i+1]))
+    val = None
+    i = 0
+    for line in process.stdout:
+        line = line.rstrip()
+        if i == 1:
+            res.append((val,line))
+            i = 0
+        else:
+            val = line
+            i = 1
     return res
 
 def clean_addr(force: int, data) -> int:
