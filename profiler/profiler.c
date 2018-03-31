@@ -4,66 +4,13 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #if defined(TEST_PROFILER)
 #include <assert.h>
 #endif
 
 #include "profiler.h"
 #include "profiler_data.h"
-
-#define PERF_METHOD_ATTRIBUTE \
-	__attribute__((no_instrument_function,hot))
-
-struct __profiler_header * __profiler_head = NULL;
-
-static inline struct __profiler_data *
-PERF_METHOD_ATTRIBUTE
-__profiler_fetch_data_ptr(void) {
-#if defined(TEST_PROFILER)
-	assert((intptr_t)(__profiler_head->data) > (intptr_t)(__profiler_head));
-	assert((intptr_t)(__profiler_head->data) < ((intptr_t)__profiler_head) + __profiler_head->size);
-#endif
-	return __profiler_head->data++;
-}
-
-static inline void
-PERF_METHOD_ATTRIBUTE
-__profiler_get_time(__profiler_sec_t * sec, __profiler_nsec_t * nsec) {
-	asm volatile (
-		"lock cmpxchg16b %[ptr] \n"
-		: "=a" (*sec),
-		  "=d" (*nsec)
-		: "a" ((uint64_t)0),
-		  "b" ((uint64_t)0),
-		  "c" ((uint64_t)0),
-		  "d" ((uint64_t)0),
-		  [ptr] "m" (__profiler_head->sec)
-	);
-}
-
-static inline void
-PERF_METHOD_ATTRIBUTE
-__cyg_profile_func(void * const this_fn, void * const call_site, enum direction_t const dir) {
-	if (__profiler_head == NULL)
-		return;
-	struct __profiler_data * data = __profiler_fetch_data_ptr();
-	__profiler_get_time(&(data->sec), &(data->nsec));
-	data->callee = this_fn;
-	data->caller = call_site;
-	data->direction = dir;
-}
-
-void
-PERF_METHOD_ATTRIBUTE
-__cyg_profile_func_enter(void * this_fn, void * call_site) {
-	__cyg_profile_func(this_fn, call_site, CALL);
-}
-
-void
-PERF_METHOD_ATTRIBUTE
-__cyg_profile_func_exit(void * this_fn, void * call_site) {
-	__cyg_profile_func(this_fn, call_site, RET);
-}
 
 #if defined(FILENAME)
 #define __PROFILER_OLD_FILENAME FILENAME
@@ -92,17 +39,31 @@ __cyg_profile_func_exit(void * this_fn, void * call_site) {
 	}
 
 #define mem_size __PROFILER_SHM_SIZE__
+#define COULD_NOT_GET_SHM "could not find " PERF_ENV_SHM_VAR " enviroment variable"
 #define OPEN_ERROR "could not open " FILENAME "\n"
 #define SIZE_ERROR "could not resize " FILENAME " to 16KiB\n" 
 #define MAP_ERROR  "__profiler_head could not be intanziated\n"
 #define UMAP_ERROR "could not unmap memory\n"
+#define SEEK_ERROR "could not seek to position\n"
+#define READ_ERROR "could not read\n"
+
+struct __profiler_header * __profiler_head = NULL;
 
 static int __profiler_fd = -1;
 static size_t __profiler_map_size = 0;
 
 static void __attribute__((no_instrument_function,cold)) __profiler_map_info(void) {
-	//TODO: This is only a dummy implementation
-	int fd = open(FILENAME, O_RDWR, (mode_t)0600);
+	char * envv = getenv(PERF_ENV_SHM_VAR);
+	if (envv == NULL) {
+		write(2, COULD_NOT_GET_SHM, sizeof(COULD_NOT_GET_SHM));
+		return;
+	}
+
+	int fd = 0;
+	for (size_t i = 0; envv[i] != 0; ++i) {
+		fd = fd * 10 + (envv[i] - '0');
+	}
+
 	if (fd == -1) {
 		write(2, OPEN_ERROR, sizeof(OPEN_ERROR));
 		return;
@@ -126,13 +87,13 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	size_t sz = lseek(fd, offsetof(struct __profiler_header, size), SEEK_SET);
 	if (sz == -1) {
 		close(fd);
-		write(2, SIZE_ERROR, sizeof(SIZE_ERROR));
+		write(2, SEEK_ERROR, sizeof(SEEK_ERROR));
 		return;
 	}
 
 	if (read(fd, &sz, sizeof(size_t)) == -1) {
 		close(fd);
-		write(2, SIZE_ERROR, sizeof(SIZE_ERROR));
+		write(2, READ_ERROR, sizeof(READ_ERROR));
 		return;
 	}
 

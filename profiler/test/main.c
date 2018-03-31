@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include "aba.h"
+
 static void a() {
 	printf("HERE\n");
 }
@@ -19,6 +21,7 @@ static void print_args(int const argc, char const * const * argv) {
 int main(int argc, char ** argv) {
 	b();
 	a();
+	aba();
 	print_args(argc, argv);
 	return 0;
 }

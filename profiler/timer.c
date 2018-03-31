@@ -33,7 +33,7 @@ static struct __profiler_header * head = NULL;
 static int shm_fd = -1;
 
 static int create_shared_memory(char const * shm_name, size_t const mem_size) {
-	int fd = open(shm_name, O_RDWR | O_CREAT | O_CLOEXEC, (mode_t)0600);
+	int fd = open(shm_name, O_RDWR | O_CREAT, (mode_t)0600);
 	if (fd == -1) {
 		print_error("Could not open %s\n", shm_name);
 		return 1;
@@ -78,20 +78,37 @@ static void unmap_shared_memory() {
 	}
 }
 
-static pid_t start_other(char * program, char ** args) {
+static pid_t start_other(char * program, char ** args, char ** envp, int fd) {
 	pid_t pid;
 	if ((pid = fork()) == 0) {
-		execv(program, args);
+		size_t sz = 0;
+		while (envp[sz++] != NULL) {}
+		char * env[sz + 1];
+		memcpy(env, envp, sizeof(char **) * sz);
+		char var[sizeof(PERF_ENV_SHM_VAR) + sizeof(fd) + 1];
+		sprintf(var, PERF_ENV_SHM_VAR "=%d", fd);
+		env[sz - 1] = var;
+		env[sz] = NULL;
+		execve(program, args, env);
+
 		exit(127);
 	}
 	return pid;
 }
 
+#if defined(SOFTEXIT)
+int softexit = 0;
+#endif
+
 static __attribute__((hot)) void * update_clock(void * ptr) {
 	//struct timespec t;
 	uint64_t sec = 0;
 	uint64_t nsec = 0;
+#if !defined(SOFTEXIT)
 	for(;;) {
+#else
+	while(!softexit) {
+#endif
 		nsec++;
 		if (nsec >= 1000000000) {
 			sec++;
@@ -110,7 +127,7 @@ static __attribute__((hot)) void * update_clock(void * ptr) {
 	}
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char ** argv, char ** envp) {
 	if (argc < 3) {
 		printf("%s needs 2 arguments, filename and different program\n", argv[0]);
 		return 1;
@@ -122,7 +139,7 @@ int main(int argc, char ** argv) {
 		return ret;
 	}
 
-	pid_t child = start_other(argv[2], argv + 2);
+	pid_t child = start_other(argv[2], argv + 2, envp, shm_fd);
  	pthread_t clock;
 	if ((ret = pthread_create(&clock, NULL, update_clock, NULL)) != 0) {
 		print_error("Could not create clock thread\n");
@@ -133,8 +150,12 @@ int main(int argc, char ** argv) {
 	if (ret != 0) {
 		print_error("Child exited with code: %d\n", ret);
 	}
+#if !defined(SOFTEXIT)
 	return 0;
-//	pthread_cancel(clock);
-//	pthread_join(clock, NULL);
-//	unmap_shared_memory();
+#else
+	softexit = 1;
+	pthread_join(clock, NULL);
+	unmap_shared_memory();
+	return 0;
+#endif
 }
