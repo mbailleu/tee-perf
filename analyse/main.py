@@ -22,6 +22,8 @@ size_t = "u8"
 SCONE = True
 SHOW_STACK = False
 data = None
+elf_file = ""
+log_file = ""
 
 class SI_prefix:
     def __init__(self, numerator: int, denominator: int):
@@ -81,6 +83,13 @@ def addr2line(binary: str, column) -> List[Tuple[str,str]]:
             i = 1
     return res
 
+def lazy_function_name(data, elf_file):
+    entries = data["callee"].drop_duplicates()
+    res = addr2line(elf_file, entries)
+    
+    for e, r in zip(entries, res):
+        data.at[data.callee == e, "callee_name"] = r[0]
+
 def clean_addr(force: int, data) -> int:
     global SCONE
     scone_offset = 0x1000000000
@@ -95,12 +104,6 @@ def clean_addr(force: int, data) -> int:
     if SCONE == True:
         return 1
     return 3
-
-def get_names(file: str, data, key: str, func_name: str, file_name: str):
-    if len(data.index) > 0:
-        res = addr2line(file, data[key])
-        data[func_name] = [func for func, file in res]
-        data[file_name] = [file for func, file in res]
 
 def force_to_str(force: int) -> str:
     if (force == 0):
@@ -125,14 +128,11 @@ def get_db(file_name: str, elf_file: str):
 
     scone_force = clean_addr(0, data)
     
-    print("Get callee functions")
-    get_names(elf_file, data, "callee", "callee_name", "callee_file")
-    
-    if SCONE == True and data["callee_name"].mode().any() == "??":
-        scone_force = clean_addr(scone_force, data)
-        get_names(elf_file, data, "callee", "callee_name", "callee_file")
-        if data["callee_name"].mode().any() == "??":
-            print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
+#    if SCONE == True and data["callee_name"].mode().any() == "??":
+#        scone_force = clean_addr(scone_force, data)
+#        get_names(elf_file, data, "callee", "callee_name", "callee_file")
+#        if data["callee_name"].mode().any() == "??":
+#            print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
     
     if False:
         print("Get caller functions")
@@ -152,7 +152,7 @@ def build_stack(data):
     stack_list = defaultdict(list)
     prev_time = 0
     caller = -1
-    for row in data[["direction","time","callee_name"]].itertuples():
+    for row in data[["direction","time","callee"]].itertuples():
         if int(row[1]) == 0:
             stack.append((row[0],row[2],prev_time,caller))
             caller = row[0]
@@ -165,7 +165,7 @@ def build_stack(data):
             stack_list["idx"].append(idx)
             stack_list["time"].append(int(row[2] - t - prev_time))
             stack_list["depth"].append(stack_depth)
-            stack_list["callee_name"].append(row[3])
+            stack_list["callee"].append(row[3])
             stack_list["caller"].append(tmp_caller)
             prev_time = prev + int(row[2] - t)
             caller = tmp_caller
@@ -199,13 +199,28 @@ def dump_output(args):
 def set_globals(args):
     global SCONE
     global SHOW_STACK
+    global elf_file
+    global file_name
     if args.no_scone == False:
         SCONE = True
     else:
         SCONE = False
     SHOW_STACK = args.show_stack
+    elf_file = args.elf_file
+    log_file = args.profile_dump
 
+def show_times(data):
+    def print_times():
+        print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
 
+    with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format):
+        try:
+            print_times()
+        except KeyError:
+            global elf_file
+            lazy_function_name(data, elf_file)
+            print_times()
+        
 def main():
     global INTERACTIVE
     args = parse_args()
@@ -215,8 +230,7 @@ def main():
     data = get_db(args.profile_dump, args.elf_file)
     data = build_stack(data)
     data["percent"] = (data["time"] / data["time"].sum()) * 100
-    with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
-            print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
+    show_times(data)
 
 if __name__ == "__main__":
     main()
