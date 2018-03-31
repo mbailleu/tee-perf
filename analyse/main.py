@@ -21,7 +21,7 @@ size_t = "u8"
 
 SCONE = True
 SHOW_STACK = False
-INTERACTIVE = False
+data = None
 
 class SI_prefix:
     def __init__(self, numerator: int, denominator: int):
@@ -171,12 +171,6 @@ def build_stack(data):
             caller = tmp_caller
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
-def __find_callers(data, func: str):
-    callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
-    print(callers)
-
-def __count_calls(data, func: str):
-    print(data[data.callee_name == func]["callee_name"].count())
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
@@ -184,7 +178,6 @@ def parse_args():
     parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
     parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack not recommended for bigger logs")
-    parser.add_argument("-i", "--interactive", action="store_true", help="Get a interactive shell at the end")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
@@ -206,16 +199,12 @@ def dump_output(args):
 def set_globals(args):
     global SCONE
     global SHOW_STACK
-    global INTERACTIVE
     if args.no_scone == False:
         SCONE = True
     else:
         SCONE = False
     SHOW_STACK = args.show_stack
-    INTERACTIVE = args.interactive
 
-
-data = None
 
 def main():
     global INTERACTIVE
@@ -225,16 +214,16 @@ def main():
     global data
     data = get_db(args.profile_dump, args.elf_file)
     data = build_stack(data)
-    #print(data)
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
             print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
-    #find_callers(data, "a")
-    if INTERACTIVE:
-        find_callers = partial(__find_callers, data)
-        count_calls = partial(__count_calls, data)
-        import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
     main()
 
+def find_callers(func: str, data = data):
+    callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
+    print(callers)
+
+def count_calls(func: str, data = data):
+    print(data[data.callee_name == func]["callee_name"].count())
