@@ -9,8 +9,9 @@ from typing import Tuple, List
 from collections import defaultdict
 import argparse
 import scone_dump_elf as de
+import sys
 from threading import Thread
-
+from functools import partial
 
 sec_t = "u8"
 nsec_t = "u8"
@@ -32,24 +33,28 @@ micro = SI_prefix(1, 10 ** 6)
 nano  = SI_prefix(1, 10 ** 9)
 
 def readfile(filename: str) -> Tuple:
-    buf = open(filename, 'rb').read()
-    data_t = np.dtype([("sec", sec_t),
-                       ("nsec", nsec_t),
-                       ("callee", ptr_t),
-                       ("caller", ptr_t),
-                       ("direction", "u8")])
-    header_t = np.dtype([("sec", sec_t),
-                         ("nsec", nsec_t),
-                         ("self", ptr_t),
-                         ("pid", pid_t),
-                         ("size", size_t),
-                         ("data", ptr_t)])
-    header = np.frombuffer(buf, dtype=header_t, count=1)
-    size = header["data"] - header["self"] - header_t.itemsize
-    max_size = header["size"] - header_t.itemsize
-    size = min(size, max_size)
-    data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
-    return (header, pd.DataFrame(data))
+    try:
+        buf = open(filename, 'rb').read()
+        data_t = np.dtype([("sec", sec_t),
+                           ("nsec", nsec_t),
+                           ("callee", ptr_t),
+                           ("caller", ptr_t),
+                           ("direction", "u8")])
+        header_t = np.dtype([("sec", sec_t),
+                             ("nsec", nsec_t),
+                             ("self", ptr_t),
+                             ("pid", pid_t),
+                             ("size", size_t),
+                             ("data", ptr_t)])
+        header = np.frombuffer(buf, dtype=header_t, count=1)
+        size = header["data"] - header["self"] - header_t.itemsize
+        max_size = header["size"] - header_t.itemsize
+        size = min(size, max_size)
+        data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
+        return (header, pd.DataFrame(data))
+    except IOError:
+        print("Could not read file: ", filename)
+        sys.exit(1)
 
 def addr2line(binary: str, column) -> List[Tuple[str,str]]:
     def write_to(column, stdin):
@@ -77,6 +82,7 @@ def addr2line(binary: str, column) -> List[Tuple[str,str]]:
     return res
 
 def clean_addr(force: int, data) -> int:
+    global SCONE
     scone_offset = 0x1000000000
     if SCONE == True and force < 2 and (force == 1 or data["callee"].min() >= scone_offset): 
         data["callee"] = data["callee"] - scone_offset
@@ -109,6 +115,7 @@ def force_to_str(force: int) -> str:
 def get_db(file_name: str, elf_file: str):
 #    file_name = "/tmp/__profiler_file_scone.shm"
 #    elf_file = "../profiler/test/test"
+    global SCONE
     print("Read File:", file_name)
     header, data = readfile(file_name)
     
@@ -134,6 +141,7 @@ def get_db(file_name: str, elf_file: str):
     return data
 
 def show_func_call(depth: int, name: str):
+    global SHOW_STACK
     if SHOW_STACK == True:
         print("| " * depth,"-> ",name,sep='')
 
@@ -163,16 +171,19 @@ def build_stack(data):
             caller = tmp_caller
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
-def find_callers(data, func: str):
+def __find_callers(data, func: str):
     callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
     print(callers)
+
+def __count_calls(data, func: str):
+    print(data[data.callee_name == func]["callee_name"].count())
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Reads profile dump from a Scone profiler generated file")
     parser.add_argument("elf_file", metavar="elf-file", type=str, help="Elf file for parsing symbols")
     parser.add_argument("profile_dump", metavar="profile-dump", type=str, help="Profiler dump file")
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
-    parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack")
+    parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack not recommended for bigger logs")
     parser.add_argument("-i", "--interactive", action="store_true", help="Get a interactive shell at the end")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
@@ -204,18 +215,24 @@ def set_globals(args):
     INTERACTIVE = args.interactive
 
 
+data = None
+
 def main():
+    global INTERACTIVE
     args = parse_args()
     set_globals(args)
-    dump_output(args)
+    dump_output(args) 
+    global data
     data = get_db(args.profile_dump, args.elf_file)
     data = build_stack(data)
     #print(data)
     data["percent"] = (data["time"] / data["time"].sum()) * 100
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format): 
             print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
-    find_callers(data, "a")
+    #find_callers(data, "a")
     if INTERACTIVE:
+        find_callers = partial(__find_callers, data)
+        count_calls = partial(__count_calls, data)
         import pdb; pdb.set_trace()
 
 if __name__ == "__main__":
