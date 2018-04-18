@@ -97,6 +97,7 @@ def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
     return res
 
 def lazy_function_name(data, elf_file):
+    print("Get function names")
     entries = data["callee"].drop_duplicates()
     addr = readelf_find_addr(elf_file, ["main"])
     mask = (1 << 64) - 1
@@ -141,22 +142,10 @@ def get_db(file_name: str, elf_file: str):
     global SCONE
     print("Read File:", file_name)
     header, data = readfile(file_name)
-    
+ 
     data["time"] = data["sec"] * nano.denominator + data["nsec"]
 
     data.drop(["sec","nsec"], axis=1, inplace=True)
-
-    scone_force = clean_addr(0, data)
-    
-#    if SCONE == True and data["callee_name"].mode().any() == "??":
-#        scone_force = clean_addr(scone_force, data)
-#        get_names(elf_file, data, "callee", "callee_name", "callee_file")
-#        if data["callee_name"].mode().any() == "??":
-#            print("Could probably not detect right elf format, assuming: " + force_to_str(scone_force))
-    
-    if False:
-        print("Get caller functions")
-        get_names(elf_file, data, "caller", "caller_name", "caller_file")
 
     return data
 
