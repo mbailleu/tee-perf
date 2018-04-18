@@ -10,8 +10,8 @@ from collections import defaultdict
 import argparse
 import scone_dump_elf as de
 import sys
+import re
 from threading import Thread
-from functools import partial
 
 sec_t = "u8"
 nsec_t = "u8"
@@ -83,10 +83,30 @@ def addr2line(binary: str, column) -> List[Tuple[str,str]]:
             i = 1
     return res
 
+def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
+    args = ["readelf", "-s", binary]
+    patterns = [re.compile(" " + func + "$") for func in funcs]
+    process = subprocess.Popen(args, stdout=subprocess.PIPE)
+    res = []
+    for line in process.stdout:
+        line = line.decode("utf8").rstrip()
+        if any(map(lambda pattern: pattern.search(line), patterns)):
+            line = line.lstrip()
+            vals = line.split(" ")
+            res.append(int(vals[1], 16))
+    return res
+
 def lazy_function_name(data, elf_file):
     entries = data["callee"].drop_duplicates()
-    res = addr2line(elf_file, entries)
-    
+    addr = readelf_find_addr(elf_file, ["main"])
+    mask = (1 << 64) - 1
+    def test_mask(entry):
+        return any(map(lambda a: entry & mask == a, addr))
+
+    while not entries.map(test_mask).any() and mask != 0:
+            mask = mask >> 1
+    masked_entries = entries.map(lambda e: e & mask)
+    res = addr2line(elf_file, masked_entries)
     for e, r in zip(entries, res):
         data.at[data.callee == e, "callee_name"] = r[0]
 
