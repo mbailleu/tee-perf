@@ -150,7 +150,7 @@ struct Args parse_args(int argc, char ** argv) {
 		       		"positional arguments:\n"
 		       		"  log_filename          File to which the log should be written\n"
 		       		"  size_in_byte          Size of the log file to be created\n"
-				"                        supports suffixes k,M,G,T,P,E\n"
+    				"                        supports suffixes k,M,G,T,P,E\n"
 		       		"  app                   Application to be started\n"
 		       		"\n"
 		       		"optional arguments:\n"
@@ -167,7 +167,7 @@ struct Args parse_args(int argc, char ** argv) {
 	{
 		size_t i = 0;
 		char c;
-		while((c = argv[2][i])) {
+		while((c = argv[2][i++])) {
 			if (c >= '0' && c <= '9') {
 				size = size * 10 + (c - '0');
 				continue;
@@ -182,6 +182,7 @@ struct Args parse_args(int argc, char ** argv) {
 				default: 	print_error("unsupported symbol: %c in the size parameter\n", c);
 							exit(1);
 			}
+            break;
 		}
 	}
 	struct Args res = {argv[0], argv[1], size, argv[3], argv + 3};
