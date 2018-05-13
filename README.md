@@ -1,25 +1,26 @@
-##Getting started
+## Getting started
 
-###Dependencies
-*gcc
-*scone-gcc
-*scone-gdb
-*python3
-*numpy
-*pandas
-*argparse
-*addr2line
-*readelf
-*make
+### Dependencies
+* gcc
+* scone-gcc
+* scone-gdb
+* python3
+* numpy
+* pandas
+* argparse
+* addr2line
+* readelf
+* make
 
-###How To Use
+### How To Use
 1. Compile the timer application under profiler/ with make
 
 2. Recompile the application to be profiled with the following additional gcc flags:
 ```
 -finstrument-functions --include=path/to/profiler.h/in/profiler/
 ```
-You have compile the profiler.c with scone-gcc and link the object file into the execuable
+
+   You have compile the profiler.c with scone-gcc and link the object file into the execuable
 
 3. Run the timer with the application as argument
 ```
@@ -28,14 +29,14 @@ You have compile the profiler.c with scone-gcc and link the object file into the
 
 4. In analyse run the main.py with the elf-file executed inside the enclave and the perf/file.
 
-##Limitation
+## Limitation
 * In contrast to the normal perf tool, this tool does not sample the application but records each function call/return. This is very memory consuming. In my experience a 2GiB log file can store around 20s of execution.
 * If the measurment file is full the application will `SEGFAULT`. Currently, this is a wanted behavior, as it is an easy way to end the application, when the measurment is over. However, I am not decided on that yet.
 * Only single threaded application can be measured.
 * Analysing the measurment file can take some time. For a full 2GiB measurment file this can be around 4 minutes on an Intel Xeon E3-1270. The analyser is mostly single threaded, therefore the single thread performance of the CPU is the limiting factor
 * Analysing takes also a huge amount of memory. The mentioned 2GiB measurment file resulted in up to 20GiB of memory requirement while analysing. However, I worked to reduce the necessary amount of memory and have not test it since. Thus this number could be a lot smaller now.
 
-##Example
+## Example
 In the `profiler` directory is a `test` directory. Compile with:
 ```
 make SCONECC=scone-gcc
@@ -86,7 +87,7 @@ To run the analyses again you can just run:
 python3 main.py dump "/tmp/__measurement_shm"
 ```
 
-If you run the main.py with the python argument -i you can also work further on the data. Two convenience method currently exist:
+If you run the main.py with the python argument -i you can also work further on the data. Two convenience methods currently exist:
 ```python3
 find_callers(function_name: str)
 count_call(function_name: str)
