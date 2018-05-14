@@ -22,36 +22,46 @@ __profiler_fetch_data_ptr(void) {
 
 static inline void
 PERF_METHOD_ATTRIBUTE
-__profiler_get_time(__profiler_sec_t * sec, __profiler_nsec_t * nsec) {
+__profiler_get_time(__profiler_nsec_t * nsec) {
+	struct T {
+		uint32_t lower;
+		uint32_t higher;
+	} * tmp = (struct T *) nsec;
+
 	asm volatile (
-		"lock cmpxchg16b %[ptr] \n"
-		: "=a" (*sec),
-		  "=d" (*nsec)
+		"lock cmpxchg8b %[ptr] \n"
+		: "=a" (tmp->lower),
+		  "=d" (tmp->higher)
 		: "a" ((uint64_t)0),
 		  "b" ((uint64_t)0),
 		  "c" ((uint64_t)0),
 		  "d" ((uint64_t)0),
-		  [ptr] "m" (__profiler_head->sec)
+		  [ptr] "m" (__profiler_head->nsec)
 	);
 }
 
 static inline void
 PERF_METHOD_ATTRIBUTE
-__cyg_profile_func(void * const this_fn, void * const call_site, enum direction_t const dir) {
+__profiler_set_direction(uint64_t * const dir, enum direction_t const val) {
+	*dir = (uint64_t)val << 63 | (*dir & (((uint64_t)1 << 63) - 1));
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
+__cyg_profile_func(void * const this_fn, enum direction_t const dir) {
 	if (__profiler_head == NULL)
 		return;
 	struct __profiler_data * data = __profiler_fetch_data_ptr();
-	__profiler_get_time(&(data->sec), &(data->nsec));
+	__profiler_get_time((__profiler_nsec_t *) &(data->nsec));
 	data->callee = this_fn;
-	data->caller = call_site;
-	data->direction = dir;
+	__profiler_set_direction(&(data->direction), dir);
 }
 
 static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_enter(void * this_fn, void * call_site) {
-	__cyg_profile_func(this_fn, call_site, CALL);
+	__cyg_profile_func(this_fn, CALL);
 }
 
 static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_exit(void * this_fn, void * call_site) {
-	__cyg_profile_func(this_fn, call_site, RET);
+	__cyg_profile_func(this_fn, RET);
 }
 

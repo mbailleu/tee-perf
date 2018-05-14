@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 
 #if !defined(__PROFILER_SHM_KEY__)
 #define __PROFILER_SHM_KEY__ 4242
@@ -22,18 +23,17 @@ enum direction_t {
 };
 
 struct __profiler_data {
-	__profiler_sec_t  sec;
-	__profiler_nsec_t nsec;
+	union {
+		uint64_t direction;
+		__profiler_nsec_t nsec;
+	};
 	void * callee;
-	void * caller;
-	uint64_t direction;
 } __attribute__((packed));
 
 struct __profiler_header {
-	__profiler_sec_t  volatile sec;
 	__profiler_nsec_t volatile nsec;
 	struct __profiler_header * self;
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;
 	struct __profiler_data * data;
-} __attribute__((packed,aligned(16)));
+} __attribute__((packed,aligned(8)));

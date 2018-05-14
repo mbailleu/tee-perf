@@ -110,7 +110,10 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	__profiler_head->scone_pid = getpid();
 	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
 	//busy Wait until timer works
-	while (__profiler_head->sec == 0 && __profiler_head->nsec == 0) {};
+	__profiler_nsec_t nsec;
+	do {
+		__profiler_get_time(&nsec);
+	} while (nsec == 0);
 }
 
 static void __attribute__((no_instrument_function,cold)) __profiler_unmap_info(void) {
@@ -145,6 +148,6 @@ DESTRUCTOR(__profiler_unmap_info);
 #endif
 
 
-#include <stdint.h>
-#include <stddef.h>
+//#include <stdint.h>
+//#include <stddef.h>
 

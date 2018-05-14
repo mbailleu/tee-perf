@@ -37,13 +37,9 @@ nano  = SI_prefix(1, 10 ** 9)
 def readfile(filename: str) -> Tuple:
     try:
         buf = open(filename, 'rb').read()
-        data_t = np.dtype([("sec", sec_t),
-                           ("nsec", nsec_t),
-                           ("callee", ptr_t),
-                           ("caller", ptr_t),
-                           ("direction", "u8")])
-        header_t = np.dtype([("sec", sec_t),
-                             ("nsec", nsec_t),
+        data_t = np.dtype([("nsec", nsec_t),
+                           ("callee", ptr_t)])
+        header_t = np.dtype([("nsec", nsec_t),
                              ("self", ptr_t),
                              ("pid", pid_t),
                              ("size", size_t),
@@ -116,11 +112,9 @@ def clean_addr(force: int, data) -> int:
     scone_offset = 0x1000000000
     if SCONE == True and force < 2 and (force == 1 or data["callee"].min() >= scone_offset): 
         data["callee"] = data["callee"] - scone_offset
-        data["caller"] = data["caller"] - scone_offset
         return 2
     if force == 2:
         data["callee"] = data["callee"] + scone_offset
-        data["caller"] = data["caller"] + scone_offset
         return 3
     if SCONE == True:
         return 1
@@ -142,10 +136,13 @@ def get_db(file_name: str, elf_file: str):
     global SCONE
     print("Read File:", file_name)
     header, data = readfile(file_name)
- 
-    data["time"] = data["sec"] * nano.denominator + data["nsec"]
+    direction_mask = 1 << 63
+    time_mask = direction_mask - 1
+    
+    data["direction"] = data["nsec"].map(lambda x: 1 if (x & direction_mask) else 0)
+    data["time"] = data["nsec"].map(lambda x:  x & time_mask)
 
-    data.drop(["sec","nsec"], axis=1, inplace=True)
+    data.drop(["nsec"], axis=1, inplace=True)
 
     return data
 

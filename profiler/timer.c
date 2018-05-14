@@ -102,27 +102,28 @@ int softexit = 0;
 
 static void * update_clock(void * ptr) {
 	//struct timespec t;
-	uint64_t sec = 0;
-	uint64_t nsec = 0;
+	union T {
+		uint64_t nsec;
+		struct {
+			uint32_t low;
+			uint32_t high;
+		};
+	} time = {(uint64_t)0}, * _head = (union T *) &(head->nsec);
+
 #if !defined(SOFTEXIT)
 	for(;;) {
 #else
 	while(!softexit) {
 #endif
-		nsec++;
-		if (nsec >= 1000000000) {
-			sec++;
-			nsec = 0;
-		}
+		time.nsec++;
 		//clock_gettime(CLOCK_MONOTONIC, &t);
 		asm volatile (
-			"lock cmpxchg16b %[ptr]\n"
-			: [ptr] "=m" (head->sec),
-			  "=m" (head->nsec)
-			: "d" (head->nsec),
-		 	  "a" (head->sec),
-			  "c" (nsec),
-			  "b" (sec)
+			"lock cmpxchg8b %[ptr]\n"
+			: [ptr] "=m" (_head->nsec)
+			: "d" (_head->high),
+		 	  "a" (_head->low),
+			  "c" (time.high),
+			  "b" (time.low)
 		);
 	}
 }
