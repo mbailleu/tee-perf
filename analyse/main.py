@@ -5,7 +5,7 @@ import pandas as pd
 import struct
 import subprocess
 from io import *
-from typing import Tuple, List
+from typing import Tuple, List, Iterable
 from collections import defaultdict
 import argparse
 import scone_dump_elf as de
@@ -53,30 +53,60 @@ def readfile(filename: str) -> Tuple:
         print("Could not read file: ", filename)
         sys.exit(1)
 
-def addr2line(binary: str, column) -> List[Tuple[str,str]]:
-    def write_to(column, stdin):
-        for entry in column:
-            stdin.write(hex(entry).encode("utf8"))
+def call_app(app: List[str], args: Iterable, map_write, res):
+    def write_to(args: Iterable, stdin, map_write) -> None:
+        for entry in args:
+            stdin.write(map_write(entry).encode("utf8"))
             stdin.write(b"\n")
-#            print(hex(entry), file=stdin)
         stdin.flush()
         stdin.close()
 
-    args = ["addr2line", "-e", binary, "-f"]
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
-    Thread(target=write_to, args=(column, process.stdin)).start()
-    res = []
-    val = None
-    i = 0
-    for line in process.stdout:
-        line = line.decode("utf8").rstrip()
-        if i == 1:
-            res.append((val,line))
-            i = 0
-        else:
-            val = line
-            i = 1
-    return res
+    process = subprocess.Popen(app, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    Thread(target=write_to, args=(args, process.stdin, map_write)).start()
+    return res(process.stdout)
+
+def demangle(methods: Iterable[str]) -> List[str]:
+    return call_app(["c++filt"], methods, lambda x: x, lambda stdout: [line.decode("utf8").rstrip() for line in stdout])
+
+def addr2line(binary: str, column) -> List[Tuple[str,str]]:
+#    def write_to(column, stdin):
+#        for entry in column:
+#            stdin.write(hex(entry).encode("utf8"))
+#            stdin.write(b"\n")
+#            print(hex(entry), file=stdin)
+#        stdin.flush()
+#        stdin.close()
+
+    def read_lines(stdout) -> List[Tuple[str,str]]:
+        res = []
+        val = None
+        i = 0
+        for line in stdout:
+            line = line.decode("utf8").rstrip()
+            if i == 1:
+                res.append((val, line))
+                i = 0
+            else:
+                val = line
+                i = 1
+        return res
+    return call_app(["addr2line", "-e", binary, "-f"], column, hex, read_lines)
+
+ #   args = ["addr2line", "-e", binary, "-f"]
+ #   process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+ #   Thread(target=write_to, args=(column, process.stdin)).start()
+ #   res = []
+ #   val = None
+ #   i = 0
+ #   for line in process.stdout:
+ #       line = line.decode("utf8").rstrip()
+ #       if i == 1:
+ #           res.append((val,line))
+ #           i = 0
+ #       else:
+ #           val = line
+ #           i = 1
+ #   return res
 
 def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
     args = ["readelf", "-s", binary]
@@ -102,9 +132,11 @@ def lazy_function_name(data, elf_file):
     while not entries.map(test_mask).any() and mask != 0:
             mask = mask >> 1
     masked_entries = entries.map(lambda e: e & mask)
-    res = addr2line(elf_file, masked_entries)
-    for e, r in zip(entries, res):
-        data.at[data.callee == e, "callee_name"] = r[0]
+    func_name = addr2line(elf_file, masked_entries)
+    demangle_name = demangle([f[0] for f in func_name])
+    import pdb; pdb.set_trace()
+    for entry, name, func in zip(entries, demangle_name, func_name):
+        data.at[data.callee == entry, "callee_name"] = name
 
 def get_db(file_name: str, elf_file: str):
 #    file_name = "/tmp/__profiler_file_scone.shm"
