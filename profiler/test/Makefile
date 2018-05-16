@@ -1,28 +1,15 @@
-.PHONY: all clean
+SRCDIR=..
 
-SCONECC ?= $(CC)
-HOSTCC ?= $(CC)
+.PHONY: all ctest cxxtest clean
 
-all: test timer
+all: ctest cxxtest
 
-timer: ../timer.c ../profiler_data.h Makefile
-	$(HOSTCC) -g -lpthread $< -o $@
+ctest:
+	make -C C
 
-test: main.o profiler.o libaba.a
-	$(SCONECC) -static -DTEST_PROFILER -g -finstrument-functions main.o profiler.o -o $@ -L./ -laba
-
-main.o: main.c ../profiler.h ../profiler_data.h aba.h Makefile
-	$(SCONECC) -static -DTEST_PROFILER -g -finstrument-functions --include=../profiler.h -c $< -o $@
-
-profiler.o: ../profiler.c ../profiler.h	../profiler_data.h Makefile
-	$(SCONECC) -static -DTEST_PROFILER -g -c $< -o $@
-
-libaba.a: aba.o
-	ar rcs $@ $<
-
-aba.o: aba.c aba.h ../profiler.h Makefile
-	$(SCONECC) -static -DTEST_PROFILER -g -finstrument-functions --include=../profiler.h -c $< -o $@
+cxxtest:
+	make -C CXX
 
 clean:
-	rm test
-	rm *.o
+	make -C C clean
+	make -C CXX clean
