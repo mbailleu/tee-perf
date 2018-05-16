@@ -1,29 +1,22 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <string.h>
-#include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
-#if defined(TEST_PROFILER)
-#include <assert.h>
-#endif
 
 #include "profiler.h"
 #include "profiler_data.h"
-
-#if defined(FILENAME)
-#define __PROFILER_OLD_FILENAME FILENAME
-#undef FILENAME
-#endif
 
 #if defined(CONSTRUCTOR)
 #define __PROFILER_OLD_CONSTRUCTOR CONSTRUCTOR
 #undef CONSTRUCTOR
 #endif
 
-//#define FILENAME "__profiler_file_scone.shm"
-#define FILENAME "/tmp/__profiler_file_scone.shm"
+#if defined(DESTRUCTOR)
+#define __PROFILER_OLD_DESTRUCTOR DESTRUCTOR
+#undef DESTRUCTOR
+#endif
+
 #define CONSTRUCTOR(x) \
 	static void \
     __attribute__((constructor,used,no_instrument_function,cold)) \
@@ -38,10 +31,8 @@
 		x();                              \
 	}
 
-#define mem_size __PROFILER_SHM_SIZE__
-#define COULD_NOT_GET_SHM "could not find " PERF_ENV_SHM_VAR " enviroment variable"
-#define OPEN_ERROR "could not open " FILENAME "\n"
-#define SIZE_ERROR "could not resize " FILENAME " to 16KiB\n" 
+#define COULD_NOT_GET_SHM "could not find " PERF_ENV_SHM_VAR " enviroment variable\n"
+#define OPEN_ERROR "could not open shared memory area\n"
 #define MAP_ERROR  "__profiler_head could not be intanziated\n"
 #define UMAP_ERROR "could not unmap memory\n"
 #define SEEK_ERROR "could not seek to position\n"
@@ -64,26 +55,11 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 		fd = fd * 10 + (envv[i] - '0');
 	}
 
-	if (fd == -1) {
+	if (fd < 0) {
 		write(2, OPEN_ERROR, sizeof(OPEN_ERROR));
 		return;
 	}
 
-#if 0
-	size_t sz = lseek(fd, mem_size, SEEK_SET);
-	if (sz == -1) {
-		close(fd);
-		write(2, SIZE_ERROR, sizeof(SIZE_ERROR));
-		return;
-	}
-
-	size_t written = write(fd, "", 1);
-	if (written == -1) {
-		close(fd);
-		write(2,SIZE_ERROR, sizeof(SIZE_ERROR));
-		return;
-	}
-#endif
 	size_t sz = lseek(fd, offsetof(struct __profiler_header, size), SEEK_SET);
 	if (sz == -1) {
 		close(fd);
@@ -135,18 +111,17 @@ static void __attribute__((no_instrument_function,cold)) __profiler_unmap_info(v
 CONSTRUCTOR(__profiler_map_info);
 DESTRUCTOR(__profiler_unmap_info);
 
-#undef FILENAME
-#if defined(__PROFILER_OLD_FILENAME)
-#define FILENAME __PROFILER_OLD_FILENAME
-#undef __PROFILER_OLD_FILENAME
-#endif
-
 #undef CONSTRUCTOR
 #if defined(__PROFILER_OLD_CONSTRUCTOR)
 #define CONSTRUCTOR __PROFILER_OLD_CONSTRUCTOR
 #undef __PROFILER_OLD_CONSTRUCTOR
 #endif
 
+#undef DESTRUCTOR
+#if defined(__PROFILER_OLD_DESTRUCTOR)
+#define DESTRUCTOR __PROFILER_OLD_DESTRUCTOR
+#undef __PROFILER_OLD_DESTRUCTOR
+#endif
 
 //#include <stdint.h>
 //#include <stddef.h>

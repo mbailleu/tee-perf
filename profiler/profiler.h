@@ -20,10 +20,8 @@ extern struct __profiler_header * __profiler_head;
 static inline struct __profiler_data * const
 PERF_METHOD_ATTRIBUTE
 __profiler_fetch_data_ptr(void) {
-#if defined(TEST_PROFILER)
 	assert((intptr_t)(__profiler_head->data) > (intptr_t)(__profiler_head));
 	assert((intptr_t)(__profiler_head->data) < ((intptr_t)__profiler_head) + __profiler_head->size);
-#endif
 	return __profiler_head->data++;
 }
 
