@@ -1,5 +1,7 @@
-profiler/test/test
-profiler/test/timer
+profiler/test/C/test
+profiler/test/C/timer
+profiler/test/CXX/test
+profiler/test/CXX/timer
 profiler/timer
 *.o
 lib*.a

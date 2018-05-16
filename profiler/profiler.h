@@ -1,5 +1,9 @@
 #pragma once
 
+#if defined(__cplusplus)
+extern "C" {
+#endif //__cplusplus
+
 #include <assert.h>
 
 #include "profiler_data.h"
@@ -68,3 +72,6 @@ static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_exit(void * this_fn, void *
 	__cyg_profile_func(this_fn, RET);
 }
 
+#if defined(__cplusplus)
+}
+#endif //__cplusplus
