@@ -1,11 +1,11 @@
 #/usr/bin/env python3
 
-import numpy as np
-import pandas as pd
+import numpy as np      # type: ignore
+import pandas as pd     # type: ignore
 import struct
 import subprocess
 from io import *
-from typing import Tuple, List, Iterable
+from typing import Tuple, List, Iterable, TypeVar, Callable, IO, Any
 from collections import defaultdict
 import argparse
 import scone_dump_elf as de
@@ -54,7 +54,10 @@ def readfile(filename: str) -> Tuple:
         print("Could not read file: ", filename)
         sys.exit(1)
 
-def call_app(app: List[str], args: Iterable, map_write, res):
+T = TypeVar("T")
+Pipe_t = TypeVar("Pipe_t")
+Res_t = TypeVar("Res_t")
+def call_app(app: List[str], args: Iterable[T], map_write: Callable[[T],str], res: Callable[[IO[Any]], Res_t]) -> Res_t:
     def write_to(args: Iterable, stdin, map_write) -> None:
         for entry in args:
             stdin.write(map_write(entry).encode("utf8"))
@@ -87,7 +90,7 @@ def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
             res.append(int(vals[1], 16))
     return res
 
-def lazy_function_name(data, elf_file):
+def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names")
     entries = data["callee"].drop_duplicates()
     addr = readelf_find_addr(elf_file, ["main"])
@@ -104,8 +107,6 @@ def lazy_function_name(data, elf_file):
         data.at[data.callee == entry, "callee_name"] = name
 
 def get_db(file_name: str, elf_file: str):
-#    file_name = "/tmp/__profiler_file_scone.shm"
-#    elf_file = "../profiler/test/test"
     global SCONE
     print("Read File:", file_name)
     header, data = readfile(file_name)
@@ -119,7 +120,7 @@ def get_db(file_name: str, elf_file: str):
 
     return data
 
-def show_func_call(depth: int, name: str):
+def show_func_call(depth: int, name: str) -> None:
     global SHOW_STACK
     if SHOW_STACK == True:
         print("| " * depth,"-> ",name,sep='')
@@ -127,7 +128,7 @@ def show_func_call(depth: int, name: str):
 def build_stack(data):
     print("build stack")
     stack_depth = 0
-    stack = []   #(idx,time,[])
+    stack: List[Tuple[int, int, int, int]] = []
     stack_list = defaultdict(list)
     prev_time = 0
     caller = -1
@@ -214,9 +215,9 @@ def main():
 if __name__ == "__main__":
     main()
 
-def find_callers(func: str, data = data):
+def find_callers(func: str, data = data) -> None:
     callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
     print(callers)
 
-def count_calls(func: str, data = data):
+def count_calls(func: str, data = data) -> None:
     print(data[data.callee_name == func]["callee_name"].count())
