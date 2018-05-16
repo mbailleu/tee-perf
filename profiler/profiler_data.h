@@ -22,6 +22,18 @@ enum direction_t {
 	RET  = 1
 };
 
+/*
+ * 2 +-+-----------------+
+ *   |D|     nsec        |
+ * 1 +-+-----------------+
+ *   |      callee       |
+ * 0 +-+-----------------+
+ *  64 63                0
+ *
+ *  D      - Direction see direction_t
+ *  nsec   - Relative time since start of timer app
+ *  callee - Callee address of method
+ */
 struct __profiler_data {
 	union {
 		uint64_t direction;

@@ -13,7 +13,7 @@ static void b() {
 	a();
 }
 
-static void print_args(int const argc, char const * const * argv) {
+static void print_args(int const argc, char * const * const argv) {
 	for (int i = 0; i < argc; ++i)
 		printf("%s\n", argv[i]);
 }	

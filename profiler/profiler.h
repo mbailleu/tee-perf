@@ -4,13 +4,16 @@
 
 #include "profiler_data.h"
 
+//Our methods get called often, also we do not want to trace ourself
 #define PERF_METHOD_ATTRIBUTE \
 	__attribute__((no_instrument_function,hot))
 
-
+//Instance in profiler.c
 extern struct __profiler_header * __profiler_head;
 
-static inline struct __profiler_data *
+//Fetches current data pointer and increase global data pointer
+//TODO Multithread safe
+static inline struct __profiler_data * const
 PERF_METHOD_ATTRIBUTE
 __profiler_fetch_data_ptr(void) {
 #if defined(TEST_PROFILER)
@@ -22,11 +25,11 @@ __profiler_fetch_data_ptr(void) {
 
 static inline void
 PERF_METHOD_ATTRIBUTE
-__profiler_get_time(__profiler_nsec_t * nsec) {
+__profiler_get_time(__profiler_nsec_t * const nsec) {
 	struct T {
 		uint32_t lower;
 		uint32_t higher;
-	} * tmp = (struct T *) nsec;
+	} * const tmp = (struct T * const) nsec;
 
 	asm volatile (
 		"lock cmpxchg8b %[ptr] \n"
@@ -51,7 +54,7 @@ PERF_METHOD_ATTRIBUTE
 __cyg_profile_func(void * const this_fn, enum direction_t const dir) {
 	if (__profiler_head == NULL)
 		return;
-	struct __profiler_data * data = __profiler_fetch_data_ptr();
+	struct __profiler_data * const data = __profiler_fetch_data_ptr();
 	__profiler_get_time((__profiler_nsec_t *) &(data->nsec));
 	data->callee = this_fn;
 	__profiler_set_direction(&(data->direction), dir);

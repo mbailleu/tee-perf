@@ -13,7 +13,6 @@ import sys
 import re
 from threading import Thread
 
-sec_t = "u8"
 nsec_t = "u8"
 pid_t = "u8"
 ptr_t = "u8"
@@ -25,14 +24,14 @@ data = None
 elf_file = ""
 log_file = ""
 
-class SI_prefix:
-    def __init__(self, numerator: int, denominator: int):
-        self.numerator = numerator
-        self.denominator = denominator
+#class SI_prefix:
+#    def __init__(self, numerator: int, denominator: int):
+#        self.numerator = numerator
+#        self.denominator = denominator
 
-milli = SI_prefix(1, 10 ** 3)
-micro = SI_prefix(1, 10 ** 6)
-nano  = SI_prefix(1, 10 ** 9)
+#milli = SI_prefix(1, 10 ** 3)
+#micro = SI_prefix(1, 10 ** 6)
+#nano  = SI_prefix(1, 10 ** 9)
 
 def readfile(filename: str) -> Tuple:
     try:
@@ -106,29 +105,6 @@ def lazy_function_name(data, elf_file):
     res = addr2line(elf_file, masked_entries)
     for e, r in zip(entries, res):
         data.at[data.callee == e, "callee_name"] = r[0]
-
-def clean_addr(force: int, data) -> int:
-    global SCONE
-    scone_offset = 0x1000000000
-    if SCONE == True and force < 2 and (force == 1 or data["callee"].min() >= scone_offset): 
-        data["callee"] = data["callee"] - scone_offset
-        return 2
-    if force == 2:
-        data["callee"] = data["callee"] + scone_offset
-        return 3
-    if SCONE == True:
-        return 1
-    return 3
-
-def force_to_str(force: int) -> str:
-    if (force == 0):
-        return "No transformation"
-    if (force == 1):
-        return "Non-Scone ELF"
-    if (force == 2):
-        return "Scone ELF"
-    if (force == 3):
-        return "Non-Scone ELF"
 
 def get_db(file_name: str, elf_file: str):
 #    file_name = "/tmp/__profiler_file_scone.shm"
