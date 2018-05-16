@@ -24,13 +24,13 @@
 
 3. Run the timer with the application as argument
 ```
-./timer /path/to/measurment/file [Size of measurment file] application application argument(s)
+./timer /path/to/measurment/file Size_of_measurment_file application application argument(s)
 ```
 
 4. In analyse run the main.py with the elf-file executed inside the enclave and the perf/file.
 
 ## Limitation
-* In contrast to the normal perf tool, this tool does not sample the application but records each function call/return. This is very memory consuming. In my experience a 2GiB log file can store around 20s of execution.
+* In contrast to the normal perf tool, this tool does not sample the application but records each function call/return. This is very memory consuming. In my experience a 2GiB log file can store around 20s of execution (This was without compression. Compression reduced the record size from 40B per record to 16B.).
 * If the measurment file is full the application will `SEGFAULT`. Currently, this is a wanted behavior, as it is an easy way to end the application, when the measurment is over. However, I am not decided on that yet.
 * Only single threaded application can be measured.
 * Analysing the measurment file can take some time. For a full 2GiB measurment file this can be around 4 minutes on an Intel Xeon E3-1270. The analyser is mostly single threaded, therefore the single thread performance of the CPU is the limiting factor
@@ -65,7 +65,7 @@ world
 ```
 After this switch to the `analyse` directory and run:
 ```
-python3 main.py -d [container with scone-gdb] ../profiler/test/test "dump" "/tmp/__measurement_shm"
+python3 main.py -d container_with_scone-gdb ../profiler/test/test "dump" "/tmp/__measurement_shm"
 ```
 The output should look similar to this:
 ```
