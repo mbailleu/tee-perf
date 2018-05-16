@@ -4,7 +4,7 @@
 * gcc
 * scone-gcc
 * scone-gdb
-* python3
+* >= python 3.6
 * numpy
 * pandas
 * argparse
