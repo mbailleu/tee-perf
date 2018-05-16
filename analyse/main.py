@@ -12,6 +12,7 @@ import scone_dump_elf as de
 import sys
 import re
 from threading import Thread
+from itertools import zip_longest
 
 nsec_t = "u8"
 pid_t = "u8"
@@ -68,50 +69,15 @@ def call_app(app: List[str], args: Iterable, map_write, res):
 def demangle(methods: Iterable[str]) -> List[str]:
     return call_app(["c++filt"], methods, lambda x: x, lambda stdout: [line.decode("utf8").rstrip() for line in stdout])
 
+
 def addr2line(binary: str, column) -> List[Tuple[str,str]]:
-#    def write_to(column, stdin):
-#        for entry in column:
-#            stdin.write(hex(entry).encode("utf8"))
-#            stdin.write(b"\n")
-#            print(hex(entry), file=stdin)
-#        stdin.flush()
-#        stdin.close()
-
-    def read_lines(stdout) -> List[Tuple[str,str]]:
-        res = []
-        val = None
-        i = 0
-        for line in stdout:
-            line = line.decode("utf8").rstrip()
-            if i == 1:
-                res.append((val, line))
-                i = 0
-            else:
-                val = line
-                i = 1
-        return res
-    return call_app(["addr2line", "-e", binary, "-f"], column, hex, read_lines)
-
- #   args = ["addr2line", "-e", binary, "-f"]
- #   process = subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
- #   Thread(target=write_to, args=(column, process.stdin)).start()
- #   res = []
- #   val = None
- #   i = 0
- #   for line in process.stdout:
- #       line = line.decode("utf8").rstrip()
- #       if i == 1:
- #           res.append((val,line))
- #           i = 0
- #       else:
- #           val = line
- #           i = 1
- #   return res
+    return call_app(["addr2line", "-e", binary, "-f"], column, hex,
+                        lambda stdout: [(func.decode("utf8").rstrip(), file.decode("utf8").rstrip()) 
+                                            for func, file in zip_longest(*[stdout]*2)])
 
 def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
-    args = ["readelf", "-s", binary]
     patterns = [re.compile(" " + func + "$") for func in funcs]
-    process = subprocess.Popen(args, stdout=subprocess.PIPE)
+    process = subprocess.Popen(["readelf", "-s", binary], stdout=subprocess.PIPE)
     res = []
     for line in process.stdout:
         line = line.decode("utf8").rstrip()
@@ -134,7 +100,6 @@ def lazy_function_name(data, elf_file):
     masked_entries = entries.map(lambda e: e & mask)
     func_name = addr2line(elf_file, masked_entries)
     demangle_name = demangle([f[0] for f in func_name])
-    import pdb; pdb.set_trace()
     for entry, name, func in zip(entries, demangle_name, func_name):
         data.at[data.callee == entry, "callee_name"] = name
 
