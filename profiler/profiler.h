@@ -15,15 +15,49 @@ extern "C" {
 //Instance in profiler.c
 extern struct __profiler_header * __profiler_head;
 
+#if defined(__PROFILER_MULTITHREADED)
+
 //Fetches current data pointer and increase global data pointer
-//TODO Multithread safe
 static inline struct __profiler_data * const
 PERF_METHOD_ATTRIBUTE
-__profiler_fetch_data_ptr(void) {
+__profiler_get_data_ptr(void) {
 	assert((intptr_t)(__profiler_head->data) > (intptr_t)(__profiler_head));
 	assert((intptr_t)(__profiler_head->data) < ((intptr_t)__profiler_head) + __profiler_head->size);
 	return __profiler_head->data++;
 }
+
+static inline struct void
+PERF_METHOD_ATTRIBUTE
+__profiler_set_thread(struct __profiler_data * const data) {
+    (void) data;
+}
+
+#else
+
+//Fetches current data pointer and increase global data pointer
+static inline struct __profiler_data * const
+PERF_METHOD_ATTRIBUTE
+__profiler_get_data_ptr(void) {
+    struct __profiler_data * res;
+    asm volatile (
+        "lock xadd %[val], %[data]"
+        : [val] "=r" (res),
+          [data] "+m" (__profiler_head->data)
+        : "[val]" (sizeof(struct __profiler_data))
+    );
+    assert((intptr_t)res > (intptr_t)__profiler_head);
+    assert((intptr_t)res < (intptr_t)__profiler_head + __profiler_head->size);
+    return res;
+}
+
+static inline struct void
+PERF_METHOD_ATTRIBUTE
+__profiler_set_thread(struct __profiler_data * const data) {
+    (void) data;
+    #error NOT IMPLEMENTED
+    assert(false);
+}
+#endif
 
 static inline void
 PERF_METHOD_ATTRIBUTE
@@ -56,10 +90,11 @@ PERF_METHOD_ATTRIBUTE
 __cyg_profile_func(void * const this_fn, enum direction_t const dir) {
 	if (__profiler_head == NULL)
 		return;
-	struct __profiler_data * const data = __profiler_fetch_data_ptr();
+	struct __profiler_data * const data = __profiler_get_data_ptr();
 	__profiler_get_time((__profiler_nsec_t *) &(data->nsec));
 	data->callee = this_fn;
 	__profiler_set_direction(&(data->direction), dir);
+    __profiler_set_thread(data);
 }
 
 static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_enter(void * this_fn, void * call_site) {
