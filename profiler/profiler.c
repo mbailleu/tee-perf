@@ -21,14 +21,14 @@
 	static void \
     __attribute__((constructor,used,no_instrument_function,cold)) \
     x ## _constructor(void) { \
-		x();                              \
+		x(); \
 	}
 
 #define DESTRUCTOR(x) \
 	static void \
     __attribute__((destructor,used,no_instrument_function,cold)) \
     x ## _destructor(void) { \
-		x();                              \
+		x(); \
 	}
 
 #define COULD_NOT_GET_SHM "could not find " PERF_ENV_SHM_VAR " enviroment variable\n"

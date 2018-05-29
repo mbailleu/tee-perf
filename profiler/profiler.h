@@ -15,7 +15,7 @@ extern "C" {
 //Instance in profiler.c
 extern struct __profiler_header * __profiler_head;
 
-#if defined(__PROFILER_MULTITHREADED)
+#if !defined(__PROFILER_MULTITHREADED)
 
 //Fetches current data pointer and increase global data pointer
 static inline struct __profiler_data * const
@@ -26,13 +26,15 @@ __profiler_get_data_ptr(void) {
 	return __profiler_head->data++;
 }
 
-static inline struct void
+static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_set_thread(struct __profiler_data * const data) {
     (void) data;
 }
 
 #else
+
+#include <pthread.h>
 
 //Fetches current data pointer and increase global data pointer
 static inline struct __profiler_data * const
@@ -50,13 +52,12 @@ __profiler_get_data_ptr(void) {
     return res;
 }
 
-static inline struct void
+static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_set_thread(struct __profiler_data * const data) {
-    (void) data;
-    #error NOT IMPLEMENTED
-    assert(false);
+	data->threadID = pthread_self();
 }
+
 #endif
 
 static inline void
