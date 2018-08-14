@@ -85,7 +85,7 @@ static pid_t start_other(char const * program, char ** args, char ** envp, int f
 		while (envp[sz++] != NULL) {}
 		char * env[sz + 1];
 		memcpy(env, envp, sizeof(char **) * sz);
-		char var[sizeof(PERF_ENV_SHM_VAR) + sizeof(fd) + 1];
+		char var[sizeof(PERF_ENV_SHM_VAR) + strlen("65536") + 1]; //Hopefully the file descriptor is only a 16bit number
 		sprintf(var, PERF_ENV_SHM_VAR "=%d", fd);
 		env[sz - 1] = var;
 		env[sz] = NULL;
@@ -145,7 +145,7 @@ struct Args parse_args(int argc, char ** argv) {
 		if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
 			print_usage(argv[0]);
 			printf("\n"
-		       		"Starts to be profiled application and provides a monotonic clock to the application.\n"
+		       		"Starts the to be profiled application and provides a monotonic clock to the application.\n"
 		       		"It also writes the profiler values to the log file\n"
 		       		"\n"
 		       		"positional arguments:\n"
