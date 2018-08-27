@@ -1,8 +1,8 @@
 SRCDIR=..
 
-.PHONY: all ctest cxxtest clean
+.PHONY: all ctest cxxtest multithreaded clean
 
-all: ctest cxxtest
+all: ctest cxxtest multithreaded
 
 ctest:
 	make -C C
@@ -10,6 +10,10 @@ ctest:
 cxxtest:
 	make -C CXX
 
+multithreaded:
+	make -C multithreaded
+
 clean:
-	make -C C clean
-	make -C CXX clean
+	-make -C C clean
+	-make -C CXX clean
+	-make -C multithreaded clean
