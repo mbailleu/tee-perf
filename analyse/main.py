@@ -53,7 +53,8 @@ def readfile(filename: str) -> Tuple:
                              ("self", ptr_t),
                              ("pid", pid_t),
                              ("size", size_t),
-                             ("data", ptr_t)])
+                             ("data", ptr_t),
+                             ("bin_location", ptr_t)])
         header = np.frombuffer(buf, dtype=header_t, count=1)
         size = header["data"] - header["self"] - header_t.itemsize
         max_size = header["size"] - header_t.itemsize
@@ -106,15 +107,7 @@ def lazy_function_name(data, elf_file: str) -> None:
     entries = data["callee"].drop_duplicates()
     print("Find addresses")
     addr = readelf_find_addr(elf_file, ["main"])
-    print("Find mask")
-    import pdb; pdb.set_trace()
     global mask
-    mask = (1 << 64) - 1
-    def test_mask(entry):
-        return any(map(lambda a: entry & mask == a, addr))
-
-    while not entries.map(test_mask).any() and mask != 0:
-            mask = mask >> 1
     print("Apply mask")
     masked_entries = entries.map(lambda e: e & mask)
     print("Find function names")
@@ -122,6 +115,15 @@ def lazy_function_name(data, elf_file: str) -> None:
     print("Demangle function names")
     tmp = pd.DataFrame({"callee_name" : demangle([f[0] for f in func_name])}, index = entries )
     return data.merge(tmp, left_on="callee", right_index=True, how="left")     
+
+def get_function_mask(header, elf_file: str):
+    print("Find relocation")
+    addr = readelf_find_addr(elf_file, ["__profiler_map_info"])
+    print("Find mask")
+    global mask
+    mask = (1 << 64) - 1
+    while (mask & header["bin_location"]) != addr and mask != 0:
+        mask = mask >> 1
 
 def get_db(file_name: str, elf_file: str):
     global SCONE
@@ -135,6 +137,9 @@ def get_db(file_name: str, elf_file: str):
 
     data.drop(["nsec"], axis=1, inplace=True)
 
+    get_function_mask(header, elf_file)
+
+    import pdb; pdb.set_trace()
     return data
 
 def show_func_call(depth: int, name: str) -> None:
@@ -158,6 +163,8 @@ def build_stack(thread_id, data):
             show_func_call(stack_depth, row[3])
         else:
             stack_depth -= 1
+            if not stack:
+                continue
             idx, t, prev, tmp_caller = stack.pop()
             stack_list["idx"].append(idx)
             stack_list["time_d"].append(int(row[2] - t - prev_time))

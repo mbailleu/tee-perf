@@ -15,6 +15,7 @@ void * start(void * ptr) {
 
 int main() {
     void * ptr = NULL;
+    __profiler_activate_trace();
     start(ptr);
     pthread_t childs[3];
     for (int i = 0; i < 3; ++i) {

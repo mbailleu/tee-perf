@@ -71,4 +71,5 @@ struct __profiler_header {
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;
 	struct __profiler_data * data;
+	uintptr_t __profiler_mem_location;
 } __attribute__((packed,aligned(8)));
