@@ -119,12 +119,8 @@ def lazy_function_name(data, elf_file: str) -> None:
     print("Find function names")
     func_name = addr2line(elf_file, masked_entries)
     print("Demangle function names")
-    demangle_name = demangle([f[0] for f in func_name])
-    bar = progressbar.ProgressBar(max_value=len(demangle_name), prefix="Add names to table: ")
-    for entry, name, func in zip(entries, demangle_name, func_name):
-        data.at[data.callee == entry, "callee_name"] = name
-        bar += 1
-    bar.finish()
+    tmp = pd.DataFrame({"callee_name" : demangle([f[0] for f in func_name])}, index = entries )
+    return data.merge(tmp, left_on="callee", right_index=True, how="left")     
 
 def get_db(file_name: str, elf_file: str):
     global SCONE
@@ -245,11 +241,12 @@ def main():
     dump_output(args) 
     global data
     data = get_db(args.profile_dump, args.elf_file)
-    lazy_function_name(data, elf_file)
+    data = lazy_function_name(data, elf_file)
     pool = Pool()
     res = pool.map(stack_loop, data.groupby("thread_id"))
     threads = pd.concat(IterableFromTuples(res, 1))
     data = data.merge(threads[["time_d", "depth", "percent", "caller"]], right_index = True, left_index = True)
+    import pdb; pdb.set_trace()
     for thread_id, thread in data.groupby("thread_id"):
         show_times(thread_id, thread, "percent")
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
