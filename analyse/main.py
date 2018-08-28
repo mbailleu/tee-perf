@@ -107,6 +107,7 @@ def lazy_function_name(data, elf_file: str) -> None:
     print("Find addresses")
     addr = readelf_find_addr(elf_file, ["main"])
     print("Find mask")
+    import pdb; pdb.set_trace()
     global mask
     mask = (1 << 64) - 1
     def test_mask(entry):
@@ -247,7 +248,6 @@ def main():
     res = [stack_loop(x) for x in data.groupby("thread_id")]
     threads = pd.concat(IterableFromTuples(res, 1))
     data = data.merge(threads[["time_d", "depth", "percent", "caller"]], right_index = True, left_index = True)
-    import pdb; pdb.set_trace()
     for thread_id, thread in data.groupby("thread_id"):
         show_times(thread_id, thread, "percent")
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100

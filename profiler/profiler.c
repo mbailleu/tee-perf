@@ -43,6 +43,10 @@ struct __profiler_header * __profiler_head = NULL;
 static int __profiler_fd = -1;
 static size_t __profiler_map_size = 0;
 
+#if defined(__cplusplus)
+extern "C" {
+#endif //__cplusplus
+
 static void __attribute__((no_instrument_function,cold)) __profiler_map_info(void) {
 	char * envv = getenv(PERF_ENV_SHM_VAR);
 	if (envv == NULL) {
@@ -118,6 +122,10 @@ static void __attribute__((no_instrument_function,cold)) __profiler_unmap_info(v
 
 CONSTRUCTOR(__profiler_map_info)
 DESTRUCTOR(__profiler_unmap_info)
+
+#if defined(__cplusplus)
+} //extern "C"
+#endif //__cplusplus
 
 #undef CONSTRUCTOR
 #if defined(__PROFILER_OLD_CONSTRUCTOR)
