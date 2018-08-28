@@ -65,10 +65,10 @@ static int create_shared_memory(char const * shm_name, size_t const mem_size) {
 	return 0;
 }
 
-static void unmap_shared_memory() {
+static void __attribute__((unused)) unmap_shared_memory() {
 	if (head != NULL) {
 		if (munmap(head, head->size)) {
-			print_error("Could not unmap %p\n", head);
+			print_error("Could not unmap %p\n", (void*)head);
 		}
 		head = NULL;
 	}
@@ -126,6 +126,7 @@ static void * update_clock(void * ptr) {
 			  "b" (time.low)
 		);
 	}
+	return NULL;
 }
 
 void print_usage(char * app_name) {

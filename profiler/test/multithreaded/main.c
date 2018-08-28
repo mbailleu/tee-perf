@@ -3,17 +3,18 @@
 
 void a() {
     for (int i = 0; i < 100; ++i) {
-        printf("%d\n", pthread_self());
+        printf("%lu\n", pthread_self());
     }
 }
 
 void * start(void * ptr) {
     (void) ptr;
     a();
+    return NULL;
 }
 
 int main() {
-    void * ptr;
+    void * ptr = NULL;
     start(ptr);
     pthread_t childs[3];
     for (int i = 0; i < 3; ++i) {

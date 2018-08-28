@@ -21,8 +21,8 @@ extern struct __profiler_header * __profiler_head;
 static inline struct __profiler_data * const
 PERF_METHOD_ATTRIBUTE
 __profiler_get_data_ptr(void) {
-	assert((intptr_t)(__profiler_head->data) > (intptr_t)(__profiler_head));
-	assert((intptr_t)(__profiler_head->data) < ((intptr_t)__profiler_head) + __profiler_head->size);
+	assert((uintptr_t)(__profiler_head->data) > (uintptr_t)(__profiler_head));
+	assert((uintptr_t)(__profiler_head->data) < ((uintptr_t)__profiler_head) + __profiler_head->size);
 	return __profiler_head->data++;
 }
 
@@ -47,8 +47,8 @@ __profiler_get_data_ptr(void) {
           [data] "+m" (__profiler_head->data)
         : "[val]" (sizeof(struct __profiler_data))
     );
-    assert((intptr_t)res > (intptr_t)__profiler_head);
-    assert((intptr_t)res < (intptr_t)__profiler_head + __profiler_head->size);
+    assert((uintptr_t)res > (uintptr_t)__profiler_head);
+    assert((uintptr_t)res < (uintptr_t)__profiler_head + __profiler_head->size);
 //    printf("%p\n", res);
     return res;
 }
@@ -153,11 +153,17 @@ __cyg_profile_func(void * const this_fn, enum direction_t const dir) {
     __profiler_set_thread(data);
 }
 
-static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_enter(void * this_fn, void * call_site) {
+static void
+PERF_METHOD_ATTRIBUTE
+__attribute__((unused))
+__cyg_profile_func_enter(void * this_fn, void * call_site) {
 	__cyg_profile_func(this_fn, CALL);
 }
 
-static void PERF_METHOD_ATTRIBUTE __cyg_profile_func_exit(void * this_fn, void * call_site) {
+static void
+PERF_METHOD_ATTRIBUTE
+__attribute__((unused))
+__cyg_profile_func_exit(void * this_fn, void * call_site) {
 	__cyg_profile_func(this_fn, RET);
 }
 

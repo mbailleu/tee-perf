@@ -61,7 +61,7 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	}
 
 	size_t sz = lseek(fd, offsetof(struct __profiler_header, size), SEEK_SET);
-	if (sz == -1) {
+	if (sz == ~0UL) {
 		close(fd);
 		write(2, SEEK_ERROR, sizeof(SEEK_ERROR));
 		return;
@@ -116,8 +116,8 @@ static void __attribute__((no_instrument_function,cold)) __profiler_unmap_info(v
 		close(fd);
 }
 
-CONSTRUCTOR(__profiler_map_info);
-DESTRUCTOR(__profiler_unmap_info);
+CONSTRUCTOR(__profiler_map_info)
+DESTRUCTOR(__profiler_unmap_info)
 
 #undef CONSTRUCTOR
 #if defined(__PROFILER_OLD_CONSTRUCTOR)
