@@ -81,6 +81,14 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	}
 	__profiler_fd = fd;
 	__profiler_head = (struct __profiler_header *)ptr;
+	__profiler_head->flags = 0;
+	__profiler_set_version(1);
+#if defined(__PROFILER_MULTITHREADED)
+    __profiler_set_multithreaded();
+#else
+    __profiler_unset_multithreaded();
+#endif
+    __profiler_activate_trace();
 	__profiler_head->self = __profiler_head;
 	__profiler_map_size = sz;
 	__profiler_head->scone_pid = getpid();

@@ -54,12 +54,19 @@ struct __profiler_data {
 	};
 	void * 		callee;
 #if defined(__PROFILER_MULTITHREADED)
-	pthread_t 	threadID;
+	uint64_t 	threadID;
 #endif
 } __attribute__((packed));
 
 struct __profiler_header {
 	__profiler_nsec_t volatile nsec;
+/*
+ *  +-+---------+-+-------+
+ *  |A|  unused |M|Version|
+ *  +-+---------+-+-------+
+ * 64 63       16 15      0
+ */
+	uint64_t flags;
 	struct __profiler_header * self;
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;

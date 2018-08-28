@@ -1,9 +1,15 @@
 #include <stdio.h>
 #include <pthread.h>
 
+void a() {
+    for (int i = 0; i < 100; ++i) {
+        printf("%d\n", pthread_self());
+    }
+}
+
 void * start(void * ptr) {
     (void) ptr;
-    printf("%d\n", pthread_self());
+    a();
 }
 
 int main() {

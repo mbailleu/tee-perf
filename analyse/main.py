@@ -13,11 +13,15 @@ import sys
 import re
 from threading import Thread
 from itertools import zip_longest
+from multiprocessing import Pool
+from functools import reduce
 
 nsec_t = "u8"
+flags_t = "u8"
 pid_t = "u8"
 ptr_t = "u8"
 size_t = "u8"
+tid_t = "u8"
 
 SCONE = True
 SHOW_STACK = False
@@ -38,8 +42,11 @@ def readfile(filename: str) -> Tuple:
     try:
         buf = open(filename, 'rb').read()
         data_t = np.dtype([("nsec", nsec_t),
-                           ("callee", ptr_t)])
+                           ("callee", ptr_t),
+                           ("thread_id", tid_t)],
+                           )
         header_t = np.dtype([("nsec", nsec_t),
+                             ("flags", flags_t),
                              ("self", ptr_t),
                              ("pid", pid_t),
                              ("size", size_t),
@@ -125,8 +132,8 @@ def show_func_call(depth: int, name: str) -> None:
     if SHOW_STACK == True:
         print("| " * depth,"-> ",name,sep='')
 
-def build_stack(data):
-    print("build stack")
+def build_stack(thread_id, data):
+    print("build stack of thread:", hex(thread_id))
     stack_depth = 0
     stack: List[Tuple[int, int, int, int]] = []
     stack_list = defaultdict(list)
@@ -143,7 +150,7 @@ def build_stack(data):
             stack_depth -= 1
             idx, t, prev, tmp_caller = stack.pop()
             stack_list["idx"].append(idx)
-            stack_list["time"].append(int(row[2] - t - prev_time))
+            stack_list["time_d"].append(int(row[2] - t - prev_time))
             stack_list["depth"].append(stack_depth)
             stack_list["callee"].append(row[3])
             stack_list["caller"].append(tmp_caller)
@@ -189,17 +196,34 @@ def set_globals(args):
     elf_file = args.elf_file
     log_file = args.profile_dump
 
-def show_times(data):
+def show_times(thread_id, data, percent: str):
     def print_times():
-        print(data.groupby(["callee_name"])[["callee_name","time","percent"]].sum().sort_values(by=["time"], ascending=False))
+        print("\nThread:", hex(thread_id))
+        print(data.groupby(["callee_name"])[["callee_name","time_d", percent]].sum().sort_values(by=["time_d"], ascending=False))
+        print()
 
     with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format):
-        try:
             print_times()
-        except KeyError:
-            global elf_file
-            lazy_function_name(data, elf_file)
-            print_times()
+
+
+def stack_loop(t):
+    thread_id, thread = t
+    thread = build_stack(thread_id, thread)
+    thread["percent"] = (thread["time_d"] / thread["time_d"].sum()) * 100
+    return (thread_id, thread)
+
+class IterableFromTuples:
+    def __init__(self, res, idx):
+        self.tuple = res
+        self.idx = idx
+
+    def __iter__(self):
+        self.iter = self.tuple.__iter__()
+        return self
+
+    def __next__(self):
+        res = self.iter.__next__()
+        return res[self.idx]
         
 def main():
     global INTERACTIVE
@@ -208,16 +232,31 @@ def main():
     dump_output(args) 
     global data
     data = get_db(args.profile_dump, args.elf_file)
-    data = build_stack(data)
-    data["percent"] = (data["time"] / data["time"].sum()) * 100
-    show_times(data)
+    lazy_function_name(data, elf_file)
+    pool = Pool()
+    res = pool.map(stack_loop, data.groupby("thread_id"))
+    threads = pd.concat(IterableFromTuples(res, 1))
+    data = data.merge(threads[["time_d", "depth", "percent", "caller"]], right_index = True, left_index = True)
+    for thread_id, thread in data.groupby("thread_id"):
+        show_times(thread_id, thread, "percent")
+    data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
+    show_times(0, data, "acc_percent")
+        
 
 if __name__ == "__main__":
     main()
 
 def find_callers(func: str, data = data) -> None:
-    callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_on="idx", how="inner")["callee_name"].value_counts()
+    callers = pd.merge(data[data.callee_name == func].caller.to_frame(), data, left_on="caller", right_index=True, how="inner")["callee_name"].value_counts()
     print(callers)
 
 def count_calls(func: str, data = data) -> None:
     print(data[data.callee_name == func]["callee_name"].count())
+
+def find_source(func: str, data = data, elf_file: str = elf_file) -> None:
+    callees = []
+    for callee, rest in data[data.callee_name == func].groupby("callee"):
+        callees.append(callee)
+    res = addr2line(elf_file, callees)
+    for func, src in res:
+        print(src)

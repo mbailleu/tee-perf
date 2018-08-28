@@ -49,6 +49,7 @@ __profiler_get_data_ptr(void) {
     );
     assert((intptr_t)res > (intptr_t)__profiler_head);
     assert((intptr_t)res < (intptr_t)__profiler_head + __profiler_head->size);
+//    printf("%p\n", res);
     return res;
 }
 
@@ -82,6 +83,60 @@ __profiler_get_time(__profiler_nsec_t * const nsec) {
 
 static inline void
 PERF_METHOD_ATTRIBUTE
+__profiler_set_version(uint16_t version) {
+    __profiler_head->flags = (__profiler_head->flags &(~0xFFFF)) | version;
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
+__profiler_set_multithreaded() {
+    __profiler_head->flags |= ((uint64_t)1) << 16;
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
+__profiler_unset_multithreaded() {
+    __profiler_head->flags &= ~(((uint64_t)1) << 16);
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
+__profiler_activate_trace() {
+    asm volatile (
+        "lock bts %[flags], %[dst] \n"
+        : [dst] "+m" (__profiler_head->flags)
+        : [flags] "i" ((uint8_t)63)
+    );
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
+__profiler_deactivate_trace() {
+    asm volatile (
+        "lock btr %[flags], %[dst] \n"
+        : [dst] "+m" (__profiler_head->flags)
+        : [flags] "i" ((uint8_t)63)
+    );
+}
+
+static inline int
+PERF_METHOD_ATTRIBUTE
+__profiler_is_active() {
+    uint32_t res;
+    asm volatile (
+        "lock cmpxchg8b %[ptr] \n"
+        : "=a" (res)
+        : "a" ((uint64_t)0),
+          "b" ((uint64_t)0),
+          "c" ((uint64_t)0),
+          "d" ((uint64_t)0),
+          [ptr] "m" (__profiler_head->flags)
+    );
+    return res & (1 << 31);
+}
+
+static inline void
+PERF_METHOD_ATTRIBUTE
 __profiler_set_direction(uint64_t * const dir, enum direction_t const val) {
 	*dir = (uint64_t)val << 63 | (*dir & (((uint64_t)1 << 63) - 1));
 }
@@ -89,7 +144,7 @@ __profiler_set_direction(uint64_t * const dir, enum direction_t const val) {
 static inline void
 PERF_METHOD_ATTRIBUTE
 __cyg_profile_func(void * const this_fn, enum direction_t const dir) {
-	if (__profiler_head == NULL)
+	if (__profiler_head == NULL || !__profiler_is_active())
 		return;
 	struct __profiler_data * const data = __profiler_get_data_ptr();
 	__profiler_get_time((__profiler_nsec_t *) &(data->nsec));
