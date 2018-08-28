@@ -135,7 +135,7 @@ def show_func_call(depth: int, name: str) -> None:
 def build_stack(thread_id, data):
     print("build stack of thread:", hex(thread_id))
     stack_depth = 0
-    stack: List[Tuple[int, int, int, int]] = []
+    stack = [] # type: List[Tuple[int, int, int, int]]
     stack_list = defaultdict(list)
     prev_time = 0
     caller = -1
