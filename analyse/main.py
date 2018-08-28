@@ -28,6 +28,7 @@ SHOW_STACK = False
 data = None
 elf_file = ""
 log_file = ""
+mask = 0
 
 #class SI_prefix:
 #    def __init__(self, numerator: int, denominator: int):
@@ -101,6 +102,7 @@ def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names")
     entries = data["callee"].drop_duplicates()
     addr = readelf_find_addr(elf_file, ["main"])
+    global mask
     mask = (1 << 64) - 1
     def test_mask(entry):
         return any(map(lambda a: entry & mask == a, addr))
@@ -109,6 +111,7 @@ def lazy_function_name(data, elf_file: str) -> None:
             mask = mask >> 1
     masked_entries = entries.map(lambda e: e & mask)
     func_name = addr2line(elf_file, masked_entries)
+    print(func_name)
     demangle_name = demangle([f[0] for f in func_name])
     for entry, name, func in zip(entries, demangle_name, func_name):
         data.at[data.callee == entry, "callee_name"] = name
@@ -254,9 +257,10 @@ def count_calls(func: str, data = data) -> None:
     print(data[data.callee_name == func]["callee_name"].count())
 
 def find_source(func: str, data = data, elf_file: str = elf_file) -> None:
+    global mask
     callees = []
     for callee, rest in data[data.callee_name == func].groupby("callee"):
-        callees.append(callee)
+        callees.append(callee & mask)
     res = addr2line(elf_file, callees)
     for func, src in res:
         print(src)
