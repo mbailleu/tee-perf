@@ -7,10 +7,10 @@ HOSTCC ?= $(CC)
 all: test timer
 
 timer: $(SRCDIR)/timer.c $(SRCDIR)/profiler_data.h Makefile
-	$(HOSTCC) -g -lpthread $< -o $@ -Wall -Wpedantic -Werror
+	$(HOSTCC) -g -lpthread $< -o $@ -Wall -Wpedantic
 
 test: main.o profiler.o
-	$(SCONECXX) -static -DTEST_PROFILER -D__PROFILER_MULTITHREADED -g -finstrument-functions main.o profiler.o -o $@ -Wall -Wpedantic -Werror
+	$(SCONECXX) -static -DTEST_PROFILER -D__PROFILER_MULTITHREADED -g -finstrument-functions main.o profiler.o -o $@ -Wall -Wpedantic -Werror -pthread
 
 main.o: main.cpp $(SRCDIR)/profiler.h $(SRCDIR)/profiler_data.h Makefile
 	$(SCONECXX) -static -DTEST_PROFILER -D__PROFILER_MULTITHREADED -g -finstrument-functions --include=$(SRCDIR)/profiler.h -c $< -o $@ -Wall -Wpedantic -Werror

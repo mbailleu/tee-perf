@@ -3,7 +3,7 @@
 
 void a() {
     for (int i = 0; i < 100; ++i) {
-        printf("%lu\n", pthread_self());
+        printf("%lu\n", (uint64_t)pthread_self());
     }
 }
 

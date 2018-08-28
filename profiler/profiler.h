@@ -56,7 +56,7 @@ __profiler_get_data_ptr(void) {
 static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_set_thread(struct __profiler_data * const data) {
-	data->threadID = pthread_self();
+	data->threadID = (uint64_t)pthread_self();
 }
 
 #endif
