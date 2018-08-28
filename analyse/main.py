@@ -15,6 +15,8 @@ from threading import Thread
 from itertools import zip_longest
 from multiprocessing import Pool
 from functools import reduce
+import time
+import progressbar
 
 nsec_t = "u8"
 flags_t = "u8"
@@ -100,8 +102,11 @@ def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
 
 def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names")
+    print("Drop duplicates")
     entries = data["callee"].drop_duplicates()
+    print("Find addresses")
     addr = readelf_find_addr(elf_file, ["main"])
+    print("Find mask")
     global mask
     mask = (1 << 64) - 1
     def test_mask(entry):
@@ -109,12 +114,17 @@ def lazy_function_name(data, elf_file: str) -> None:
 
     while not entries.map(test_mask).any() and mask != 0:
             mask = mask >> 1
+    print("Apply mask")
     masked_entries = entries.map(lambda e: e & mask)
+    print("Find function names")
     func_name = addr2line(elf_file, masked_entries)
-    print(func_name)
+    print("Demangle function names")
     demangle_name = demangle([f[0] for f in func_name])
+    bar = progressbar.ProgressBar(max_value=len(demangle_name), prefix="Add names to table: ")
     for entry, name, func in zip(entries, demangle_name, func_name):
         data.at[data.callee == entry, "callee_name"] = name
+        bar += 1
+    bar.finish()
 
 def get_db(file_name: str, elf_file: str):
     global SCONE
