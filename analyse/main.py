@@ -242,8 +242,9 @@ def main():
     global data
     data = get_db(args.profile_dump, args.elf_file)
     data = lazy_function_name(data, elf_file)
-    pool = Pool()
-    res = pool.map(stack_loop, data.groupby("thread_id"))
+    #pool = Pool()
+    #res = pool.map(stack_loop, data.groupby("thread_id"))
+    res = [stack_loop(x) for x in data.groupby("thread_id")]
     threads = pd.concat(IterableFromTuples(res, 1))
     data = data.merge(threads[["time_d", "depth", "percent", "caller"]], right_index = True, left_index = True)
     import pdb; pdb.set_trace()
