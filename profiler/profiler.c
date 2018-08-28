@@ -88,7 +88,7 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 #else
     __profiler_unset_multithreaded();
 #endif
-    __profiler_activate_trace();
+    __profiler_deactivate_trace();
 	__profiler_head->self = __profiler_head;
 	__profiler_map_size = sz;
 	__profiler_head->scone_pid = getpid();
