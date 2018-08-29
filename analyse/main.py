@@ -84,10 +84,19 @@ def demangle(methods: Iterable[str]) -> List[str]:
     return call_app(["c++filt"], methods, lambda x: x, lambda stdout: [line.decode("utf8").rstrip() for line in stdout])
 
 
-def addr2line(binary: str, column) -> List[Tuple[str,str]]:
-    return call_app(["addr2line", "-e", binary, "-f"], column, hex,
-                        lambda stdout: [(func.decode("utf8").rstrip(), file.decode("utf8").rstrip()) 
-                                            for func, file in zip_longest(*[stdout]*2)])
+def addr2line(binary: str, column, show_progress: bool = False) -> List[Tuple[str,str]]:
+    if show_progress:
+        bar = progressbar.ProgressBar(max_value=len(column), prefix = "Find function names: ") 
+    def f(i, func, file):
+        if show_progress:
+            bar.update(i)
+        return (func.decode("utf8").rstrip(), file.decode("utf8").rstrip())
+
+    res = call_app(["addr2line", "-e", binary, "-f"], column, hex,
+                        lambda stdout: [ f(i, func, file) for i, (func, file) in enumerate(zip_longest(*[stdout]*2))])
+    if show_progress:
+        bar.finish()
+    return res
 
 def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
     patterns = [re.compile(" " + func + "$") for func in funcs]
@@ -102,17 +111,17 @@ def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
     return res
 
 def lazy_function_name(data, elf_file: str) -> None:
-    print("Get function names")
-    print("Drop duplicates")
+    print("Get function names:")
+    print("\tDrop duplicates")
     entries = data["callee"].drop_duplicates()
-    print("Find addresses")
+    print("\tFind addresses")
     addr = readelf_find_addr(elf_file, ["main"])
     global mask
-    print("Apply mask")
+    print("\tApply mask")
     masked_entries = entries.map(lambda e: e & mask)
-    print("Find function names")
-    func_name = addr2line(elf_file, masked_entries)
-    print("Demangle function names")
+    print("\tFind function names")
+    func_name = addr2line(elf_file, masked_entries, True)
+    print("\tDemangle function names")
     tmp = pd.DataFrame({"callee_name" : demangle([f[0] for f in func_name])}, index = entries )
     return data.merge(tmp, left_on="callee", right_index=True, how="left")     
 
