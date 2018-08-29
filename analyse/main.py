@@ -146,14 +146,16 @@ def show_func_call(depth: int, name: str) -> None:
     if SHOW_STACK == True:
         print("| " * depth,"-> ",name,sep='')
 
-def build_stack(thread_id, data):
-    print("build stack of thread:", hex(thread_id))
+def build_stack(thread_id, data, i, sz):
+    rows = data[["direction", "time", "callee"]]
+    bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {})".format(hex(thread_id), i + 1, sz))
     stack_depth = 0
     stack = [] # type: List[Tuple[int, int, int, int]]
     stack_list = defaultdict(list)
     prev_time = 0
     caller = -1
-    for row in data[["direction","time","callee"]].itertuples():
+    for row in rows.itertuples():
+        bar += 1
         if int(row[1]) == 0:
             stack.append((row[0],row[2],prev_time,caller))
             caller = row[0]
@@ -172,6 +174,7 @@ def build_stack(thread_id, data):
             stack_list["caller"].append(tmp_caller)
             prev_time = prev + int(row[2] - t)
             caller = tmp_caller
+    bar.finish()
     return pd.DataFrame(stack_list, index=stack_list["idx"])
 
 
@@ -222,9 +225,9 @@ def show_times(thread_id, data, percent: str):
             print_times()
 
 
-def stack_loop(t):
+def stack_loop(t, i, sz):
     thread_id, thread = t
-    thread = build_stack(thread_id, thread)
+    thread = build_stack(thread_id, thread, i, sz)
     thread["percent"] = (thread["time_d"] / thread["time_d"].sum()) * 100
     return (thread_id, thread)
 
@@ -251,7 +254,9 @@ def main():
     data = lazy_function_name(data, elf_file)
     #pool = Pool()
     #res = pool.map(stack_loop, data.groupby("thread_id"))
-    res = [stack_loop(x) for x in data.groupby("thread_id")]
+    grouped_threads = data.groupby("thread_id")
+    n_threads = len(grouped_threads)
+    res = [stack_loop(x, i, sz) for (x, i, sz) in zip(grouped_threads, range(n_threads), [n_threads] * n_threads)]
     threads = pd.concat(IterableFromTuples(res, 1))
     data = data.merge(threads[["time_d", "depth", "percent", "caller"]], right_index = True, left_index = True)
     for thread_id, thread in data.groupby("thread_id"):
