@@ -139,7 +139,6 @@ def get_db(file_name: str, elf_file: str):
 
     get_function_mask(header, elf_file)
 
-    import pdb; pdb.set_trace()
     return data
 
 def show_func_call(depth: int, name: str) -> None:
@@ -216,10 +215,10 @@ def set_globals(args):
 def show_times(thread_id, data, percent: str):
     def print_times():
         print("\nThread:", hex(thread_id))
-        print(data.groupby(["callee_name"])[["callee_name","time_d", percent]].sum().sort_values(by=["time_d"], ascending=False))
+        print(data.groupby(["callee_name"])[["callee_name","time_d", percent]].sum().nlargest(5, "time_d"))
         print()
 
-    with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format):
+    with pd.option_context("display.max_rows", None, "display.max_columns", 3, "display.float_format", "{:.4f}".format, "max_colwidth", 255):
             print_times()
 
 
