@@ -102,6 +102,8 @@ __profiler_unset_multithreaded() {
 static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_activate_trace() {
+    if (__profiler_head == NULL)
+        return;
     asm volatile (
         "lock bts %[flags], %[dst] \n"
         : [dst] "+m" (__profiler_head->flags)
@@ -112,6 +114,8 @@ __profiler_activate_trace() {
 static inline void
 PERF_METHOD_ATTRIBUTE
 __profiler_deactivate_trace() {
+    if (__profiler_head == NULL)
+        return;
     asm volatile (
         "lock btr %[flags], %[dst] \n"
         : [dst] "+m" (__profiler_head->flags)
