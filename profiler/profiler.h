@@ -1,5 +1,9 @@
 #pragma once
 
+#if !defined(__PROFILER__)
+#define __PROFILER__
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif //__cplusplus
