@@ -96,7 +96,7 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	__profiler_head->self = __profiler_head;
 	__profiler_map_size = sz;
 	__profiler_head->scone_pid = getpid();
-	__profiler_head->data = (struct __profiler_data *)(__profiler_head + 1);
+    __profiler_head->idx = 0;
 	__profiler_head->__profiler_mem_location = (uintptr_t)&__profiler_map_info;
 	//busy Wait until timer works
 	__profiler_nsec_t nsec;

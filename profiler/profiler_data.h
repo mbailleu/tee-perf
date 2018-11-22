@@ -18,7 +18,9 @@ typedef __profiler_nsec_t __profiler_direction_t;
 
 enum direction_t {
 	CALL = 0,
-	RET  = 1
+	RET  = 1,
+	ACTIVATE = 1,
+	DEACTIVATE = 0
 };
 
 /*
@@ -46,6 +48,37 @@ enum direction_t {
  *  D      - Direction see direction_t
  *  nsec   - Relative time since start of timer app
  *  callee - Callee address of method
+ *
+ *  Two special entries exists:
+ *  Activating events, and deactivating events
+ *  The direction bit is used to denote activation or deactivation
+ *  nsec still remains the same, callee and if availlable threadID will be set to 0
+ *  
+ *  
+ *  2 +-+----------------+
+ *    |A|     nsec       |
+ *  1 +-+----------------+
+ *    |       0x0        |
+ *  0 +------------------+
+ *   64 63               0
+ *
+ *   A     - Activation if 1, Deactivation if 0
+ *   nsec  - Relative time since start of timer app
+ *
+ *
+ * Multithreaded:
+ * 3 +-+-----------------+
+ *   |A|     nsec        |
+ * 2 +-+-----------------+
+ *   |       0x0         |
+ * 1 +-+-----------------+
+ *   |       0x0         |
+ * 0 +-+-----------------+
+ *  64 63                0
+ *
+ *  A     - Activating if 1, Deactivation if 0
+ *  nsec  - Relative time since start of timer app
+ *
  */
 struct __profiler_data {
 	union {
@@ -65,11 +98,15 @@ struct __profiler_header {
  *  |A|  unused |M|Version|
  *  +-+---------+-+-------+
  * 64 63       16 15      0
+ *
+ * A       - If currently the application gets profiled
+ * M       - If the application is profiled with multihread support
+ * Version - Version number of the currently used log format
  */
 	uint64_t flags;
 	struct __profiler_header * self;
 	__profiler_pid_t  volatile scone_pid;
 	size_t size;
-	struct __profiler_data * data;
+	uint64_t idx;
 	uintptr_t __profiler_mem_location;
 } __attribute__((packed,aligned(8)));

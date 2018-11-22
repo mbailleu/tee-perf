@@ -13,8 +13,13 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <signal.h>
 
 #include "profiler_data.h"
+
+#define PERF_METHOD_ATTRIBUTE 
+#define perf_log_head head
+#include "profiler.h"
 
 #define PROG_NAME "timer"
 
@@ -29,7 +34,7 @@
 #define print_error(...) \
 	prog_fprint(stderr, __VA_ARGS__)
 
-static struct __profiler_header * head = NULL;
+struct __profiler_header * head = NULL;
 static int shm_fd = -1;
 
 static int create_shared_memory(char const * shm_name, size_t const mem_size) {
@@ -94,6 +99,24 @@ static pid_t start_other(char const * program, char ** args, char ** envp, int f
 		exit(127);
 	}
 	return pid;
+}
+
+void catch_signal(int signo) {
+    switch(signo) {
+        case SIGUSR1 : __profiler_activate(); break;
+        case SIGUSR2 : __profiler_deactivate(); break;
+    }
+}
+
+static int add_signal_handler() {
+    int signos[] = {SIGUSR1, SIGUSR2};
+    for (int i = 0U; i < sizeof(signos) / sizeof(signos[0]); ++i) {
+        if (signal(signos[i], &catch_signal) == SIG_ERR) {
+            print_error("Could not attach signal handler to signal %d\n", signos[i]);
+            return 1;
+        }
+    }
+    return 0;
 }
 
 #if defined(SOFTEXIT)
@@ -197,6 +220,10 @@ int main(int argc, char ** argv, char ** envp) {
 	if ((ret = create_shared_memory(args.shm_name, args.shm_size))) {
 		return ret;
 	}
+
+	if ((ret = add_signal_handler())) {
+	    return ret;
+    }
 
 	pid_t child = start_other(args.app_name, args.app_args, envp, shm_fd);
  	pthread_t clock;
