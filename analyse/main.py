@@ -1,4 +1,4 @@
-#/usr/bin/env python3
+#!/usr/bin/env python3
 
 import numpy as np      # type: ignore
 import pandas as pd     # type: ignore
@@ -18,19 +18,19 @@ from functools import reduce
 import time
 import progressbar
 
-nsec_t = "u8"
+nsec_t  = "u8"
 flags_t = "u8"
-pid_t = "u8"
-ptr_t = "u8"
-size_t = "u8"
-tid_t = "u8"
+pid_t   = "u8"
+ptr_t   = "u8"
+size_t  = "u8"
+tid_t   = "u8"
 
-SCONE = True
+SCONE      = True
 SHOW_STACK = False
-data = None
-elf_file = ""
-log_file = ""
-mask = 0
+data       = None
+elf_file   = ""
+log_file   = ""
+mask       = 0
 
 #class SI_prefix:
 #    def __init__(self, numerator: int, denominator: int):
@@ -41,13 +41,32 @@ mask = 0
 #micro = SI_prefix(1, 10 ** 6)
 #nano  = SI_prefix(1, 10 ** 9)
 
+def read_entries(buf, header, header_t, data_t):
+    size = header["data"]
+    max_size = (header["size"] - header_t.itemsize) // data_t.itemsize
+    size = min(size, max_size)
+    return np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size))
+
+def read_multi_threaded_file(buf, header, header_t):
+    data_t = np.dtype([("nsec", nsec_t),
+                      ("callee", ptr_t),
+                      ("thread_id", tid_t)],
+                    )
+    data = read_entries(buf, header, header_t, data_t)
+    return (header, pd.DataFrame(data))
+
+def read_single_threaded_file(buf, header, header_t):
+    data_t = np.dtype([("nsec", nsec_t),
+                       ("callee", ptr_t)],
+                     )
+    data = read_entries(buf, header, header_t, data_t)
+    frame = pd.DataFrame(data)
+    frame["thread_id"] = 0x0
+    return (header, frame)
+
 def readfile(filename: str) -> Tuple:
     try:
         buf = open(filename, 'rb').read()
-        data_t = np.dtype([("nsec", nsec_t),
-                           ("callee", ptr_t),
-                           ("thread_id", tid_t)],
-                           )
         header_t = np.dtype([("nsec", nsec_t),
                              ("flags", flags_t),
                              ("self", ptr_t),
@@ -56,11 +75,10 @@ def readfile(filename: str) -> Tuple:
                              ("data", ptr_t),
                              ("bin_location", ptr_t)])
         header = np.frombuffer(buf, dtype=header_t, count=1)
-        size = header["data"] - header["self"] - header_t.itemsize
-        max_size = header["size"] - header_t.itemsize
-        size = min(size, max_size)
-        data = np.frombuffer(buf, dtype=data_t, offset=header_t.itemsize, count=int(size//data_t.itemsize))
-        return (header, pd.DataFrame(data))
+        flags = int(header["flags"])
+        if (flags & (1 << 15)) == 0:
+            return read_single_threaded_file(buf, header, header_t)
+        return read_multi_threaded_file(buf, header, header_t)
     except IOError:
         print("Could not read file: ", filename)
         sys.exit(1)
@@ -163,6 +181,7 @@ def build_stack(thread_id, data, i, sz):
     stack_list = defaultdict(list)
     prev_time = 0
     caller = -1
+    #TODO what happens if a trace is stop and later continued? We have to calculate all remaining times and close the stack
     for row in rows.itertuples():
         bar += 1
         if int(row[1]) == 0:
