@@ -18,6 +18,8 @@ from functools import reduce
 import time
 import progressbar
 
+import flamegraph as fl
+
 nsec_t  = "u8"
 flags_t = "u8"
 pid_t   = "u8"
@@ -291,6 +293,7 @@ def main():
         show_times(thread_id, thread, "percent")
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
     show_times(0, data, "acc_percent")
+#    print(fl.export_to(data))
         
 
 if __name__ == "__main__":
