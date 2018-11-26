@@ -32,6 +32,7 @@ SHOW_STACK = False
 data       = None
 elf_file   = ""
 log_file   = ""
+flame_file = ""
 mask       = 0
 
 #class SI_prefix:
@@ -215,6 +216,7 @@ def parse_args():
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
     parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack not recommended for bigger logs")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
+    parser.add_argument("-fg", "--flamegraph", type=str, help="File for flamegraph output")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
     return parser.parse_args()
@@ -237,6 +239,7 @@ def set_globals(args):
     global SHOW_STACK
     global elf_file
     global file_name
+    global flame_file
     if args.no_scone == False:
         SCONE = True
     else:
@@ -244,6 +247,7 @@ def set_globals(args):
     SHOW_STACK = args.show_stack
     elf_file = args.elf_file
     log_file = args.profile_dump
+    flame_file = args.flamegraph
 
 def show_times(thread_id, data, percent: str):
     def print_times():
@@ -293,7 +297,10 @@ def main():
         show_times(thread_id, thread, "percent")
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
     show_times(0, data, "acc_percent")
-#    print(fl.export_to(data))
+    global flame_file
+    if flame_file != "":
+        with open(flame_file, "w") as f:
+            fl.export_to(f, data)
         
 
 if __name__ == "__main__":
