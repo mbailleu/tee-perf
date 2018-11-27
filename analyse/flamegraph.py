@@ -11,8 +11,8 @@ def get_stack(data, caller) -> str:
     for entry in data[data.index == caller][["caller", "callee_name"]].itertuples():
         return get_stack(data, entry.caller) + entry.callee_name + ';'
 
-def export_to(out: IO[AnyStr], data) -> None:
+def export_to(out: Callable[[bool], AnyStr], data) -> None:
     for callee in data.callee_name.unique():
         for entry in data[data.callee_name == callee][["caller","time_d"]].groupby("caller").sum().itertuples():
-            out.write(get_stack(data, entry.Index) + callee + ' ' + str(entry.time_d) + '\n')
-
+            if not out(get_stack(data, entry.Index) + callee + ' ' + str(entry.time_d) + '\n'):
+                return

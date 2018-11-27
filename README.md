@@ -13,6 +13,7 @@
 * make
 * c++filt
 * progressbar2
+* flamegraph
 
 ### How To Use
 1. Compile the timer application under profiler/ with make

@@ -131,6 +131,14 @@ def readelf_find_addr(binary: str, funcs: List[str]) -> List[int]:
             res.append(int(vals[1], 16))
     return res
 
+def call_flame_graph(data, out_file_name: str) -> None:
+    with open(out_file_name, "w") as out_file:
+        process = subprocess.Popen(["flamegraph.pl"], stdout=out_file, stdin=subprocess.PIPE)
+        fl.export_to(lambda line: process.stdin.write(line.encode("utf8")), data)
+        process.stdin.flush()
+        process.stdin.close()
+        
+
 def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names:")
     print("\tDrop duplicates")
@@ -299,9 +307,7 @@ def main():
     show_times(0, data, "acc_percent")
     global flame_file
     if flame_file != "":
-        with open(flame_file, "w") as f:
-            fl.export_to(f, data)
-        
+       call_flame_graph(data, flame_file) 
 
 if __name__ == "__main__":
     main()
