@@ -97,7 +97,7 @@ struct __profiler_header {
  *  +-+---------+-+-------+
  *  |A|  unused |M|Version|
  *  +-+---------+-+-------+
- * 64 63       16 15      0
+ * 64 63       17 16      0
  *
  * A       - If currently the application gets profiled
  * M       - If the application is profiled with multihread support
