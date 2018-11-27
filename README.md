@@ -4,7 +4,7 @@
 * gcc
 * scone-gcc
 * scone-gdb
-* >= python 3.6
+* \>= python 3.6
 * numpy
 * pandas
 * argparse
@@ -23,7 +23,7 @@
 -finstrument-functions --include=path/to/profiler.h/in/profiler/
 ```
 
-   You have compile the profiler.c with scone-gcc and link the object file into the execuable
+   You have to compile the profiler.c with scone-gcc and link the object file into the execuable
 
 3. Run the timer with the application as argument
 ```
@@ -35,7 +35,6 @@
 ## Limitation
 * In contrast to the normal perf tool, this tool does not sample the application but records each function call/return. This is very memory consuming. In my experience a 2GiB log file can store around 20s of execution (This was without compression. Compression reduced the record size from 40B per record to 16B.).
 * If the measurment file is full the application will `SEGFAULT`. Currently, this is a wanted behavior, as it is an easy way to end the application, when the measurment is over. However, I am not decided on that yet.
-* Only single threaded application can be measured.
 * Analysing the measurment file can take some time. For a full 2GiB measurment file this can be around 4 minutes on an Intel Xeon E3-1270. The analyser is mostly single threaded, therefore the single thread performance of the CPU is the limiting factor
 * Analysing takes also a huge amount of memory. The mentioned 2GiB measurment file resulted in up to 20GiB of memory requirement while analysing. However, I worked to reduce the necessary amount of memory and have not test it since. Thus this number could be a lot smaller now.
 
