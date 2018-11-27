@@ -2,8 +2,14 @@ profiler/test/C/test
 profiler/test/C/timer
 profiler/test/CXX/test
 profiler/test/CXX/timer
+profiler/test/multithreaded/test
+profiler/test/multithreaded/timer
 profiler/timer
+*/tmp
 *.o
 lib*.a
 out
 __pycache__
+.gdb_history
+*.svg
+.mypy_cache
