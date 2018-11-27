@@ -7,7 +7,7 @@ HOSTCC ?= $(CC)
 all: test timer
 
 timer: $(SRCDIR)/timer.c $(SRCDIR)/profiler_data.h Makefile
-	$(HOSTCC) -g -lpthread $< -o $@
+	$(HOSTCC) -g -pthread $< -o $@
 
 test: main.o profiler.o libaba.a
 	$(SCONECC) -static -DTEST_PROFILER -g -finstrument-functions main.o profiler.o -o $@ -L./ -laba -Wall -Wpedantic -Werror
