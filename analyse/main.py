@@ -79,7 +79,6 @@ def readfile(filename: str) -> Tuple:
                              ("bin_location", ptr_t)])
         header = np.frombuffer(buf, dtype=header_t, count=1)
         flags = int(header["flags"])
-        import pdb; pdb.set_trace()
         if (flags & (1 << 16)) == 0:
             return read_single_threaded_file(buf, header, header_t)
         return read_multi_threaded_file(buf, header, header_t)
