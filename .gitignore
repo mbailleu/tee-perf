@@ -8,6 +8,7 @@ profiler/timer
 */tmp
 *.o
 lib*.a
+lib*.so
 out
 __pycache__
 .gdb_history
