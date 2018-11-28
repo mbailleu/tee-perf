@@ -215,14 +215,14 @@ __cyg_profile_func(void * const this_fn, enum direction_t const dir) {
 
 static void
 PERF_METHOD_ATTRIBUTE
-__attribute__((unused))
+__attribute__((used))
 __cyg_profile_func_enter(void * this_fn, void * call_site) {
 	__cyg_profile_func(this_fn, CALL);
 }
 
 static void
 PERF_METHOD_ATTRIBUTE
-__attribute__((unused))
+__attribute__((used))
 __cyg_profile_func_exit(void * this_fn, void * call_site) {
 	__cyg_profile_func(this_fn, RET);
 }
