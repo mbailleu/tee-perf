@@ -33,6 +33,7 @@ data       = None
 elf_file   = ""
 log_file   = ""
 flame_file = ""
+dump_flame = ""
 mask       = 0
 
 #class SI_prefix:
@@ -138,6 +139,9 @@ def call_flame_graph(data, out_file_name: str) -> None:
         process.stdin.flush()
         process.stdin.close()
         
+def dump_flame_graph(data, out_file:str) -> None:
+    with open(out_file, "w") as out:
+        fl.export_to(lambda line: out.write(line), data)
 
 def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names:")
@@ -186,7 +190,7 @@ def show_func_call(depth: int, name: str) -> None:
 
 def build_stack(thread_id, data, i, sz):
     rows = data[["direction", "time", "callee"]]
-    bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {})".format(hex(thread_id), i + 1, sz))
+    bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {}): ".format(hex(thread_id), i + 1, sz))
     stack_depth = 0
     stack = [] # type: List[Tuple[int, int, int, int]]
     stack_list = defaultdict(list)
@@ -224,7 +228,8 @@ def parse_args():
     parser.add_argument("-ns", "--no-scone", action="store_true", help="Try not scone elf parsing")
     parser.add_argument("-s", "--show-stack", action="store_true", help="Show Stack not recommended for bigger logs")
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
-    parser.add_argument("-fg", "--flamegraph", type=str, help="File for flamegraph output")
+    parser.add_argument("-fg", "--flamegraph", type=str, help="File for flamegraphs output")
+    parser.add_argument("-dfg", "--dump-flamegraph", type=str, help="File for dumping file in Flamegraph format")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
     return parser.parse_args()
@@ -248,6 +253,7 @@ def set_globals(args):
     global elf_file
     global file_name
     global flame_file
+    global dump_flame
     if args.no_scone == False:
         SCONE = True
     else:
@@ -256,6 +262,7 @@ def set_globals(args):
     elf_file = args.elf_file
     log_file = args.profile_dump
     flame_file = args.flamegraph
+    dump_flame = args.dump_flamegraph
 
 def show_times(thread_id, data, percent: str):
     def print_times():
@@ -307,7 +314,10 @@ def main():
     show_times(0, data, "acc_percent")
     global flame_file
     if flame_file != None:
-       call_flame_graph(data, flame_file) 
+        call_flame_graph(data, flame_file)  
+    global dump_flame
+    if dump_flame != None:
+        dump_flame_graph(data, dump_flame)
 
 if __name__ == "__main__":
     main()
