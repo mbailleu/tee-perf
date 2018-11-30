@@ -306,7 +306,7 @@ def main():
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
     show_times(0, data, "acc_percent")
     global flame_file
-    if flame_file != "":
+    if flame_file != None:
        call_flame_graph(data, flame_file) 
 
 if __name__ == "__main__":
