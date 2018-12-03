@@ -28,13 +28,17 @@ extern struct __profiler_header * perf_log_head;
 #if defined(PROFILER_WARP_AROUND)
 extern uint64_t __profiler_mask;
 
-static inline uint64_t __profiler_warp_around(uint64_t num) {
+static inline uint64_t
+PERF_METHOD_ATTRIBUTE
+__profiler_warp_around(uint64_t num) {
     return num & __profiler_mask;
 }
 
 #else
 
-static inline uint64_t __profiler_warp_around(uint64_t num) {
+static inline uint64_t
+PERF_METHOD_ATTRIBUTE
+__profiler_warp_around(uint64_t num) {
     return num;
 }
 
