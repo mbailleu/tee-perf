@@ -40,6 +40,13 @@
 
 struct __profiler_header * __profiler_head = NULL;
 
+#if defined(PROFILER_WARP_AROUND)
+uint64_t __profiler_mask = 0;
+
+#warning You are compiling with PROFILER_WARP_AROUND, that option is only provided to get an estimate on the performance inpact of the profiler and should not (cannot) be used for profiling.
+
+#endif
+
 static int __profiler_fd = -1;
 static size_t __profiler_map_size = 0;
 
@@ -83,6 +90,18 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 		write(2, MAP_ERROR, sizeof(MAP_ERROR));
 		return;
 	}
+
+#if defined(PROFILER_WARP_AROUND)
+    asm volatile (
+            "bsr %[num], %[res]"
+            : [res] "=r" (__profiler_mask)
+            : [num] "r" (sz)
+    );
+    
+    __profiler_mask = 1 << (__profiler_mask - 1);
+    __profiler_mask -= 1;
+#endif
+
 	__profiler_fd = fd;
 	__profiler_head = (struct __profiler_header *)ptr;
 	__profiler_head->flags = 0;

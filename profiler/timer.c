@@ -37,6 +37,10 @@
 struct __profiler_header * head = NULL;
 static int shm_fd = -1;
 
+#if defined(PROFILER_WARP_AROUND)
+uint64_t __profiler_mask = 0;
+#endif
+
 static int create_shared_memory(char const * shm_name, size_t const mem_size) {
 	int fd = open(shm_name, O_RDWR | O_CREAT, (mode_t)0600);
 	if (fd == -1) {

@@ -25,13 +25,28 @@ extern "C" {
 //Instance in profiler.c
 extern struct __profiler_header * perf_log_head;
 
+#if defined(PROFILER_WARP_AROUND)
+extern uint64_t __profiler_mask;
+
+static inline uint64_t __profiler_warp_around(uint64_t num) {
+    return num & __profiler_mask;
+}
+
+#else
+
+static inline uint64_t __profiler_warp_around(uint64_t num) {
+    return num;
+}
+
+#endif
+
 #if !defined(__PROFILER_MULTITHREADED)
 
 //Fetches current data pointer and increase global data pointer
 static inline struct __profiler_data * const
 PERF_METHOD_ATTRIBUTE
 __profiler_get_data_ptr(void) {
-    struct __profiler_data * res = ((struct __profiler_data *)(perf_log_head + 1) + (perf_log_head->idx++));
+    struct __profiler_data * res = ((struct __profiler_data *)(perf_log_head + 1) + (__profiler_warp_around(perf_log_head->idx++)));
 	assert((uintptr_t)(res) > (uintptr_t)(perf_log_head));
 	assert((uintptr_t)(res) < ((uintptr_t)perf_log_head) + perf_log_head->size);
 	return res;
@@ -65,7 +80,7 @@ __profiler_get_data_ptr(void) {
           [data] "+m" (perf_log_head->idx)
         : "[val]" (1)
     );
-    struct __profiler_data * res = ((struct __profiler_data *)(perf_log_head + 1)) + idx;
+    struct __profiler_data * res = ((struct __profiler_data *)(perf_log_head + 1)) + __profiler_warp_around(idx);
     assert((uintptr_t)res > (uintptr_t)perf_log_head);
     assert((uintptr_t)res < (uintptr_t)perf_log_head + perf_log_head->size);
 //    printf("%p\n", res);
