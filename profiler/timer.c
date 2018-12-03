@@ -233,8 +233,9 @@ int main(int argc, char ** argv, char ** envp) {
 	}
 
 	waitpid(child, &ret, 0);
-	if (ret != 0) {
-		print_error("Child exited with code: %d\n", ret);
+	int const exit_code = WEXITSTATUS(ret);
+	if (!WIFEXITED(ret) || exit_code != 0) {
+		print_error("Child exited with code: %d\n", exit_code);
 	}
 #if !defined(SOFTEXIT)
 	//Let the OS clean up
