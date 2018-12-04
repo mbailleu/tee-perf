@@ -204,8 +204,12 @@ def build_stack(thread_id, data, i, sz):
     rows = data[["direction", "time", "callee", "callee_name"]]
     bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {}): ".format(hex(thread_id), i + 1, sz))
     stack_depth = 0
+<<<<<<< HEAD
 #    stack : List[Tuple[int, int, int, int, str]] = []
     stack = []
+=======
+    stack : List[Tuple[int, int, int, int, str]] = []
+>>>>>>> rewrote flamegraph generation
     stack_list = defaultdict(list)
     global flame_graph
     stack_name = ""
