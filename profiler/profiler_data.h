@@ -5,11 +5,11 @@
 
 #if defined(__PROFILER_MULTITHREADED)
 #include <pthread.h>
-#endif
+#endif //defined(__PROFILER_MULTITHREADED)
 
 #if !defined(PERF_ENV_SHM_VAR)
 #define PERF_ENV_SHM_VAR "SGXPROFILERSHM"
-#endif
+#endif //defined(PERF_ENV_SHM_VAR)
 
 typedef uint64_t __profiler_sec_t;
 typedef uint64_t __profiler_nsec_t;
@@ -88,7 +88,7 @@ struct __profiler_data {
 	void * 		callee;
 #if defined(__PROFILER_MULTITHREADED)
 	uint64_t 	threadID;
-#endif
+#endif //defined(__PROFILER_MULTITHREADED)
 } __attribute__((packed));
 
 struct __profiler_header {

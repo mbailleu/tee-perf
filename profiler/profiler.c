@@ -10,12 +10,12 @@
 #if defined(CONSTRUCTOR)
 #define __PROFILER_OLD_CONSTRUCTOR CONSTRUCTOR
 #undef CONSTRUCTOR
-#endif
+#endif //defined(CONSTRUCTOR)
 
 #if defined(DESTRUCTOR)
 #define __PROFILER_OLD_DESTRUCTOR DESTRUCTOR
 #undef DESTRUCTOR
-#endif
+#endif //defined(DESTRUCTOR)
 
 #define CONSTRUCTOR(x) \
 	static void \
@@ -40,12 +40,21 @@
 
 struct __profiler_header * __profiler_head = NULL;
 
-#if defined(PROFILER_WARP_AROUND)
+#if defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
 uint64_t __profiler_mask = 0;
+
+#if defined(PROFILER_WARP_AROUND)
 
 #warning You are compiling with PROFILER_WARP_AROUND, that option is only provided to get an estimate on the performance inpact of the profiler and should not (cannot) be used for profiling.
 
-#endif
+#warning You are compiling with PROFILER_WARP_AROUND, as this produced some confusion in user test we have renamed it PROFILER_LOOP_AROUND please use that
+
+#else // defined(PROFILER_WARP_AROUND)
+
+#warning You are compiling with PROFILER_LOOP_AROUND, that option is only provided to get an estimate on the performance inpact of the profiler and should not (cannot) be used for profiling.
+
+#endif // defined(PROFILER_WARP_AROUND)
+#endif // defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
 
 static int __profiler_fd = -1;
 static size_t __profiler_map_size = 0;
@@ -91,17 +100,19 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 		return;
 	}
 
-#if defined(PROFILER_WARP_AROUND)
-    size_t max_n_elem = sz  / sizeof(struct __profiler_data);
-    asm volatile (
+#if defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
+    {
+        size_t max_n_elem = sz  / sizeof(struct __profiler_data);
+        asm volatile (
             "bsr %[num], %[res]"
             : [res] "=r" (__profiler_mask)
             : [num] "r" (max_n_elem)
-    );
+        );
     
-    __profiler_mask = 1 << (__profiler_mask - 1);
-    __profiler_mask -= 1;
-#endif
+        __profiler_mask = 1 << (__profiler_mask - 1);
+        __profiler_mask -= 1;
+    }
+#endif //defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
 
 	__profiler_fd = fd;
 	__profiler_head = (struct __profiler_header *)ptr;
@@ -109,9 +120,9 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	__profiler_set_version(1);
 #if defined(__PROFILER_MULTITHREADED)
     __profiler_set_multithreaded();
-#else
+#else //defined(__PROFILER_MULTITHREADED)
     __profiler_unset_multithreaded();
-#endif
+#endif //defined(__PROFILER_MULTITHREADED)
 //    __profiler_deactivate_trace();
     __profiler_activate_trace();
 	__profiler_head->self = __profiler_head;
@@ -153,13 +164,13 @@ DESTRUCTOR(__profiler_unmap_info)
 #if defined(__PROFILER_OLD_CONSTRUCTOR)
 #define CONSTRUCTOR __PROFILER_OLD_CONSTRUCTOR
 #undef __PROFILER_OLD_CONSTRUCTOR
-#endif
+#endif //defined(__PROFILER_OLD_CONSTRUCTOR)
 
 #undef DESTRUCTOR
 #if defined(__PROFILER_OLD_DESTRUCTOR)
 #define DESTRUCTOR __PROFILER_OLD_DESTRUCTOR
 #undef __PROFILER_OLD_DESTRUCTOR
-#endif
+#endif //defined(__PROFILER_OLD_DESTRUCTOR)
 
 //#include <stdint.h>
 //#include <stddef.h>

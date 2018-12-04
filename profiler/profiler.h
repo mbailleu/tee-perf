@@ -2,7 +2,11 @@
 
 #if !defined(__PROFILER__)
 #define __PROFILER__
-#endif
+#endif //!defined(__PROFILER__)
+
+#if defined(PROFILER_WRAP_AROUND)
+#warning You have defined PROFILER_WRAP_AROUND, however you probably meant PROFILER_WARP_AROUND. To prevent this warning in future you should use PROFILER_LOOP_AROUND
+#endif //defined(PROFILER_WRAP_AROUND)
 
 #if defined(__cplusplus)
 extern "C" {
@@ -16,16 +20,18 @@ extern "C" {
 //Our methods get called often, also we do not want to trace ourself
 #define PERF_METHOD_ATTRIBUTE \
 	__attribute__((no_instrument_function,hot))
-#endif
+#endif //!defined(PERF_METHOD_ATTRIBUTE)
 
 #if !defined(perf_log_head)
 #define perf_log_head __profiler_head
-#endif
+#endif //!defined(perf_log_head)
 
 //Instance in profiler.c
 extern struct __profiler_header * perf_log_head;
 
-#if defined(PROFILER_WARP_AROUND)
+#if defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
+//
+//Instance in profiler.c
 extern uint64_t __profiler_mask;
 
 static inline uint64_t
@@ -34,7 +40,7 @@ __profiler_warp_around(uint64_t num) {
     return num & __profiler_mask;
 }
 
-#else
+#else //defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
 
 static inline uint64_t
 PERF_METHOD_ATTRIBUTE
@@ -42,7 +48,7 @@ __profiler_warp_around(uint64_t num) {
     return num;
 }
 
-#endif
+#endif //defined(PROFILER_WARP_AROUND) || defined(PROFILER_LOOP_AROUND)
 
 #if !defined(__PROFILER_MULTITHREADED)
 
@@ -69,7 +75,7 @@ __profiler_get_thread_id() {
     return 0;
 }
 
-#else
+#else //!defined(__PROFILER_MULTITHREADED)
 
 #include <pthread.h>
 
@@ -103,7 +109,7 @@ __profiler_get_thread_id() {
     return (uint64_t)pthread_self();
 }
 
-#endif
+#endif //!defined(__PROFILER_MULTITHREADED)
 
 static inline void
 PERF_METHOD_ATTRIBUTE
