@@ -92,10 +92,11 @@ static void __attribute__((no_instrument_function,cold)) __profiler_map_info(voi
 	}
 
 #if defined(PROFILER_WARP_AROUND)
+    size_t max_n_elem = sz  / sizeof(struct __profiler_data);
     asm volatile (
             "bsr %[num], %[res]"
             : [res] "=r" (__profiler_mask)
-            : [num] "r" (sz)
+            : [num] "r" (max_n_elem)
     );
     
     __profiler_mask = 1 << (__profiler_mask - 1);
