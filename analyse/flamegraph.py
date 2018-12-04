@@ -11,7 +11,10 @@ def get_stack(data, caller) -> str:
     if (int(caller) == -1):
         return ""
     for entry in data[data.index == caller][["caller", "callee_name"]].itertuples():
+        if entry.callee_name is None:
+            return ""
         return get_stack(data, entry.caller) + entry.callee_name + ';'
+    return ""
 
 def export_to(out: Callable[[bool], AnyStr], data) -> None:
     column = data.callee_name.unique()

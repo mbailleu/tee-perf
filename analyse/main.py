@@ -35,6 +35,7 @@ log_file   = ""
 flame_file = ""
 dump_flame = ""
 mask       = 0
+force_multithreading = 0
 
 #class SI_prefix:
 #    def __init__(self, numerator: int, denominator: int):
@@ -79,6 +80,10 @@ def readfile(filename: str) -> Tuple:
                              ("data", ptr_t),
                              ("bin_location", ptr_t)])
         header = np.frombuffer(buf, dtype=header_t, count=1)
+        if force_multithreading == 1:
+            return read_multi_threaded_file(buf, header, header_t)
+        elif force_multithreading == 2:
+            return read_single_threaded_file(buf, header, header_t)
         flags = int(header["flags"])
         if (flags & (1 << 16)) == 0:
             return read_single_threaded_file(buf, header, header_t)
@@ -230,6 +235,8 @@ def parse_args():
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parser.add_argument("-fg", "--flamegraph", type=str, help="File for flamegraphs output")
     parser.add_argument("-dfg", "--dump-flamegraph", type=str, help="File for dumping file in Flamegraph format")
+    parser.add_argument("--force-multithreading", action="store_true", help="Forces multi threaded interpretation of log file (deactivates autodetect)")
+    parser.add_argument("--force-singlethreading", action="store_true", help="Forces single threaded interpretation of log file (deactivates autodetect)")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
     return parser.parse_args()
@@ -254,6 +261,7 @@ def set_globals(args):
     global file_name
     global flame_file
     global dump_flame
+    global force_multithreading
     if args.no_scone == False:
         SCONE = True
     else:
@@ -263,6 +271,10 @@ def set_globals(args):
     log_file = args.profile_dump
     flame_file = args.flamegraph
     dump_flame = args.dump_flamegraph
+    if args.force_multithreading == True:
+        force_multithreading = 1
+    if args.force_singlethreading == True:
+        force_multithreading = 2
 
 def show_times(thread_id, data, percent: str):
     def print_times():
