@@ -36,6 +36,7 @@ flame_file = ""
 dump_flame = ""
 mask       = 0
 force_multithreading = 0
+flame_graph = defaultdict(int)
 
 #class SI_prefix:
 #    def __init__(self, numerator: int, denominator: int):
@@ -145,8 +146,14 @@ def call_flame_graph(data, out_file_name: str) -> None:
         process.stdin.close()
         
 def dump_flame_graph(data, out_file:str) -> None:
+    global flame_graph
+    progress = progressbar.ProgressBar(max_value = len(flame_graph), prefix="Writing flamegraph file: ")
     with open(out_file, "w") as out:
-        fl.export_to(lambda line: out.write(line), data)
+        for stack, time in flame_graph.items():
+            out.write(stack + " " + str(time) + '\n')
+            progress += 1
+    progress.finish()
+
 
 def lazy_function_name(data, elf_file: str) -> None:
     print("Get function names:")
@@ -194,33 +201,39 @@ def show_func_call(depth: int, name: str) -> None:
         print("| " * depth,"-> ",name,sep='')
 
 def build_stack(thread_id, data, i, sz):
-    rows = data[["direction", "time", "callee"]]
+    rows = data[["direction", "time", "callee", "callee_name"]]
     bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {}): ".format(hex(thread_id), i + 1, sz))
     stack_depth = 0
-    stack = [] # type: List[Tuple[int, int, int, int]]
+    stack : List[Tuple[int, int, int, int, str]] = []
     stack_list = defaultdict(list)
+    global flame_graph
+    stack_name = ""
     prev_time = 0
     caller = -1
     #TODO what happens if a trace is stop and later continued? We have to calculate all remaining times and close the stack
     for row in rows.itertuples():
         bar += 1
         if int(row[1]) == 0:
-            stack.append((row[0],row[2],prev_time,caller))
+            stack.append((row[0],row[2],prev_time,caller, stack_name))
             caller = row[0]
             prev_time = 0
             stack_depth += 1
+            stack_name = stack_name + row.callee_name + ';'
             show_func_call(stack_depth, row[3])
         else:
             stack_depth -= 1
             if not stack:
                 continue
-            idx, t, prev, tmp_caller = stack.pop()
+            idx, t, prev, tmp_caller, names = stack.pop()
+            time = int(row[2] - t - prev_time)
             stack_list["idx"].append(idx)
-            stack_list["time_d"].append(int(row[2] - t - prev_time))
+            stack_list["time_d"].append(time)
             stack_list["depth"].append(stack_depth)
             stack_list["callee"].append(row[3])
             stack_list["caller"].append(tmp_caller)
             prev_time = prev + int(row[2] - t)
+            flame_graph[names + row.callee_name] += time
+            stack_name = names
             caller = tmp_caller
     bar.finish()
     return pd.DataFrame(stack_list, index=stack_list["idx"])
@@ -324,9 +337,9 @@ def main():
         show_times(thread_id, thread, "percent")
     data["acc_percent"] = (data["time_d"] / data["time_d"].sum()) * 100
     show_times(0, data, "acc_percent")
-    global flame_file
-    if flame_file != None:
-        call_flame_graph(data, flame_file)  
+    #global flame_file
+    #if flame_file != None:
+    #    call_flame_graph(data, flame_file)  
     global dump_flame
     if dump_flame != None:
         dump_flame_graph(data, dump_flame)
