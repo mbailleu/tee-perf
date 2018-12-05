@@ -156,6 +156,12 @@ static void * update_clock(void * ptr) {
 	return NULL;
 }
 
+void print_clock() {
+    __profiler_nsec_t nsec;
+    __profiler_get_time(&nsec);
+    printf("Last Counter Val: %lu\n", nsec); 
+}
+
 void print_usage(char * app_name) {
 	printf("Usage: %s [-h] log_filename size_in_byte app [app argument(s)]\n", app_name);
 }
@@ -243,11 +249,13 @@ int main(int argc, char ** argv, char ** envp) {
 	}
 #if !defined(SOFTEXIT)
 	//Let the OS clean up
+    print_clock();	
 	return 0;
 #else
 	softexit = 1;
 	pthread_join(clock, NULL);
 	unmap_shared_memory();
+	print_clock();
 	return 0;
 #endif
 }
