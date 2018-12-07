@@ -204,7 +204,8 @@ def build_stack(thread_id, data, i, sz):
     rows = data[["direction", "time", "callee", "callee_name"]]
     bar = progressbar.ProgressBar(max_value=len(rows), prefix="Build Stack of Thread {} ({} of {}): ".format(hex(thread_id), i + 1, sz))
     stack_depth = 0
-    stack : List[Tuple[int, int, int, int, str]] = []
+#    stack : List[Tuple[int, int, int, int, str]] = []
+    stack = []
     stack_list = defaultdict(list)
     global flame_graph
     stack_name = ""
@@ -248,10 +249,12 @@ def parse_args():
     parser.add_argument("-d", "--dump", nargs=2, help="Also dump target enclave ELF <scone container> <executable>")
     parser.add_argument("-fg", "--flamegraph", type=str, help="File for flamegraphs output")
     parser.add_argument("-dfg", "--dump-flamegraph", type=str, help="File for dumping file in Flamegraph format")
+    parser.add_argument("--to-csv", type=str, help="Dumps the method and their summed up times + and percentatges to a csv file")
     parser.add_argument("--force-multithreading", action="store_true", help="Forces multi threaded interpretation of log file (deactivates autodetect)")
     parser.add_argument("--force-singlethreading", action="store_true", help="Forces single threaded interpretation of log file (deactivates autodetect)")
     parserdump = parser.add_argument_group("Arguments for dumping enclave ELF")
     parserdump.add_argument("-do", "--dump-output", type=str, default=None, help="Dump of the scone compiled executable, if not given assuming elf_file")
+    parserdump.add_argument("--in-container", action="store_true", help="The executable is already in the container [WHY JUST WHY????]")
     return parser.parse_args()
 
 def dump_output(args):
@@ -263,7 +266,7 @@ def dump_output(args):
             dump_output = args.dump_output
         if SCONE == True:
             print("Dump enclave ELF to", dump_output)
-            de.dump(args.dump[0], args.dump[1], dump_output)
+            de.dump(args.dump[0], args.dump[1], dump_output, args.in_container)
         else:
             print("Cannot dump Scone ELF without Scone")
 
@@ -343,6 +346,8 @@ def main():
     global dump_flame
     if dump_flame != None:
         dump_flame_graph(data, dump_flame)
+    if args.to_csv != None:
+        data.groupby(["callee_name"])[["callee_name", "time_d", "acc_percent"]].sum().sort_values("acc_percent", ascending=False).to_csv(args.to_csv, sep=';')
 
 if __name__ == "__main__":
     main()
