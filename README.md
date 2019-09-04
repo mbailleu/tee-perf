@@ -1,3 +1,5 @@
+TEE-perf is a function level profiling tool for trusted execution enviroments like Intel SGX and ARM Trustzone. Our DSN'19 [paper](http://homepages.inf.ed.ac.uk/pbhatoti/papers/TEE-Perf-DSN-2019.pdf "TEE-Perf: A Profiler for Trusted Execution Environments") describes the tool in detail.
+
 ## Getting started
 
 ### Dependencies
