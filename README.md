@@ -47,8 +47,10 @@ make SCONECC=scone-gcc
 ```
 Run in the `profiler` directory
 ```
-./timer /tmp/__measurement_shm 4k ./test/test hello world
+./timer /tmp/__measurement_shm 4k ./test/C/test hello world
 ```
+Depending on the SCONE version you might have to set some appropriate flags to bypass the fs shield.
+
 This should result in the following output:
 ```
 HERE
